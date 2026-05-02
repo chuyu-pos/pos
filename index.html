@@ -1,0 +1,1661 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>初予營運POS</title>
+<style>
+/* ════════════════════════════════════
+   設計系統
+════════════════════════════════════ */
+:root{
+  --cream:#FDF8F3;--milk:#F5EBDD;--latte:#E8D5BA;
+  --caramel:#D4A574;--mocha:#A67B5B;--espresso:#5C4033;
+  --ink:#3D2E22;--muted:#8B7355;--border:#EDE0D4;
+  --rose:#F5C6BD;--sage:#B8CDB8;--gold:#E8C285;
+  --lavender:#D5CDE8;--danger:#D87470;--success:#87B884;
+  --sidebar-w:240px;
+}
+*{-webkit-tap-highlight-color:transparent;box-sizing:border-box;margin:0;padding:0}
+html,body{font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;min-height:100vh}
+button,input,select,textarea{font-family:inherit;font-size:inherit}
+button{border:none;cursor:pointer;background:none}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--caramel)!important}
+.tap{transition:transform .1s;cursor:pointer}.tap:active{transform:scale(0.97)}
+.no-scrollbar::-webkit-scrollbar{display:none}.no-scrollbar{-ms-overflow-style:none;scrollbar-width:none}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.anim-slide{animation:slideUp .3s ease-out both}
+.anim-fade{animation:fadeIn .25s ease-out both}
+.anim-pop{animation:pop .4s cubic-bezier(0.18,1.25,0.4,1) both}
+
+/* ════════════════════════════════════
+   登入頁
+════════════════════════════════════ */
+#login-view{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,var(--espresso),var(--mocha));
+}
+.login-card{
+  background:white;border-radius:28px;padding:40px;
+  width:100%;max-width:380px;box-shadow:0 40px 80px rgba(0,0,0,.15);
+}
+.login-logo{font-size:48px;text-align:center;margin-bottom:8px}
+.login-title{font-size:24px;font-weight:800;text-align:center;color:var(--ink);margin-bottom:4px}
+.login-sub{font-size:13px;text-align:center;color:var(--muted);margin-bottom:32px}
+.field{margin-bottom:18px}
+.field-label{font-size:13px;color:var(--muted);font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.input{width:100%;padding:13px 16px;border-radius:12px;border:1.5px solid var(--border);font-size:15px;color:var(--ink);background:white}
+.btn-group-grid{display:grid;gap:8px}
+.btn-option{padding:12px;border-radius:12px;background:white;color:var(--ink);font-weight:600;font-size:14px;border:1.5px solid var(--border)}
+.btn-option.selected{background:var(--caramel);color:white;border-color:var(--caramel)}
+.btn-primary-full{width:100%;padding:16px;border-radius:14px;background:linear-gradient(135deg,var(--caramel),var(--mocha));color:white;font-size:16px;font-weight:700;box-shadow:0 8px 24px rgba(166,123,91,.3)}
+.btn-secondary-full{width:100%;padding:14px;border-radius:14px;background:white;color:var(--mocha);font-size:14px;font-weight:600;border:1.5px solid var(--border)}
+.btn-danger-full{width:100%;padding:14px;border-radius:14px;background:white;color:var(--danger);font-size:14px;font-weight:600;border:1.5px solid var(--danger)}
+
+/* ════════════════════════════════════
+   前台 App (員工 + 老闆App模式)
+════════════════════════════════════ */
+#app-view{
+  display:none;background:linear-gradient(180deg,#F0E4D3 0%,#E8D5BA 100%);
+  min-height:100vh;padding:20px 0;justify-content:center;
+}
+#app-view.active{display:flex}
+#app-frame{
+  width:100%;max-width:430px;min-height:calc(100vh - 40px);
+  background:var(--cream);border-radius:32px;
+  box-shadow:0 30px 80px rgba(92,64,51,.18);
+  overflow:hidden;display:flex;flex-direction:column;position:relative
+}
+@media(max-width:480px){
+  #app-view{padding:0;background:var(--cream)}
+  #app-frame{max-width:100%;min-height:100vh;border-radius:0;box-shadow:none}
+}
+/* App 共用 UI */
+.app-header{padding:20px 20px 12px;display:flex;align-items:center;gap:12px;background:var(--cream);position:sticky;top:0;z-index:10}
+.app-header h1{flex:1;font-size:20px;font-weight:700;color:var(--ink)}
+.icon-btn{width:40px;height:40px;border-radius:14px;background:var(--milk);color:var(--espresso);display:grid;place-items:center}
+.icon-btn-primary{background:var(--caramel);color:white}
+.scroll-area{flex:1;overflow-y:auto;padding:0 20px 130px}
+.card{background:white;border-radius:20px;padding:18px;box-shadow:0 2px 10px rgba(166,123,91,.06);margin-bottom:12px}
+.tag{display:inline-block;padding:3px 10px;border-radius:999px;background:var(--latte);color:var(--espresso);font-size:11px;font-weight:600}
+.tag-vip{background:var(--rose);color:#8B3A2E}.tag-old{background:var(--gold);color:#7A5A1F}.tag-new{background:var(--milk);color:var(--mocha)}
+.app-input{width:100%;padding:14px 16px;border-radius:14px;border:1.5px solid var(--border);background:white;font-size:15px;color:var(--ink)}
+.app-btn-primary{width:100%;padding:18px;border-radius:18px;background:linear-gradient(135deg,var(--caramel),var(--mocha));color:white;font-size:16px;font-weight:700;box-shadow:0 10px 24px rgba(166,123,91,.3)}
+.app-btn-secondary{width:100%;padding:14px;border-radius:14px;background:white;color:var(--mocha);font-size:14px;font-weight:600;border:1.5px solid var(--border)}
+.app-btn-danger{width:100%;padding:14px;border-radius:14px;background:white;color:var(--danger);font-size:14px;font-weight:600;border:1.5px solid var(--danger)}
+.progress-bar{display:flex;gap:8px;padding:0 24px 16px}
+.progress-bar>div{flex:1;height:5px;border-radius:999px;background:var(--border);transition:background .3s}
+.progress-bar>div.active{background:var(--caramel)}
+.avatar{width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,var(--milk),var(--latte));display:grid;place-items:center;color:var(--mocha);font-weight:700;font-size:18px;flex-shrink:0}
+.avatar-lg{width:80px;height:80px;border-radius:28px;background:linear-gradient(135deg,var(--caramel),var(--mocha));color:white;font-size:32px;display:grid;place-items:center}
+.btn-group-grid{display:grid;gap:8px}
+.btn-option-app{padding:12px;border-radius:12px;background:white;color:var(--ink);font-weight:600;font-size:14px;border:1.5px solid var(--border)}
+.btn-option-app.selected{background:var(--caramel);color:white;border-color:var(--caramel)}
+.date-picker{display:flex;gap:8px;overflow-x:auto;padding:0 20px 16px}
+.date-pick-item{min-width:60px;padding:12px 8px;border-radius:16px;background:white;text-align:center;box-shadow:0 2px 6px rgba(0,0,0,.04);cursor:pointer}
+.date-pick-item.active{background:linear-gradient(135deg,var(--caramel),var(--mocha));color:white}
+.big-btn{background:white;border-radius:24px;padding:22px 18px;box-shadow:0 2px 10px rgba(166,123,91,.06);display:flex;flex-direction:column;gap:12px;min-height:110px;color:var(--espresso);cursor:pointer}
+.big-btn-icon{width:44px;height:44px;border-radius:14px;display:grid;place-items:center}
+.big-btn-label{font-size:15px;font-weight:700;margin-bottom:2px}
+.big-btn-sub{font-size:12px;opacity:.7}
+.bottom-nav{position:sticky;bottom:0;z-index:50;background:white;border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(5,1fr);padding:8px 0 max(14px,env(safe-area-inset-bottom));box-shadow:0 -4px 20px rgba(92,64,51,.07)}
+.nav-btn{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px;border:none;background:none;cursor:pointer;color:var(--muted);transition:color .15s}
+.nav-btn.active{color:var(--caramel)}
+.nav-btn span{font-size:10px;font-weight:600}
+.nav-center{background:linear-gradient(135deg,var(--caramel),var(--mocha));border-radius:20px;color:white;margin-top:-14px;width:56px;height:56px;place-self:center;display:grid;place-items:center;box-shadow:0 6px 20px rgba(166,123,91,.35);border:none;cursor:pointer;transition:transform .1s}
+.nav-center:active{transform:scale(.93)}
+.mg-high{color:#4A8C4A;font-weight:700}.mg-mid{color:#C07820;font-weight:700}.mg-low{color:var(--danger);font-weight:700}
+.visit-warn{background:#FEF3CD;color:#856404;padding:3px 9px;border-radius:8px;font-size:11px;font-weight:600;display:inline-block;margin-top:4px}
+.visit-red{background:#FDDEDE;color:#8C2020}
+.app-modal-overlay{position:fixed;inset:0;background:rgba(60,40,30,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(4px)}
+.app-modal{background:white;border-radius:24px;padding:24px;width:100%;max-width:360px}
+.app-modal h3{color:var(--ink);margin-bottom:12px;font-size:18px}
+.app-modal p{color:var(--muted);margin-bottom:20px;font-size:14px}
+.app-modal-actions{display:flex;gap:10px}
+.app-modal-actions button{flex:1;padding:12px;border-radius:12px;font-weight:600}
+
+/* ════════════════════════════════════
+   後台管理 (老闆後台模式)
+════════════════════════════════════ */
+#admin-view{display:none;min-height:100vh;background:var(--milk)}
+#admin-view.active{display:flex}
+.sidebar{width:var(--sidebar-w);background:var(--espresso);color:white;display:flex;flex-direction:column;position:fixed;top:0;left:0;height:100vh;z-index:100;overflow-y:auto}
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);transition:transform .3s}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+}
+.sidebar-logo{padding:28px 24px 20px;border-bottom:1px solid rgba(255,255,255,.1)}
+.sidebar-logo-title{font-size:18px;font-weight:800;margin-top:4px}
+.sidebar-logo-sub{font-size:11px;opacity:.6;margin-top:2px}
+.sidebar-nav{padding:16px 12px;flex:1}
+.nav-item{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:14px;color:rgba(255,255,255,.7);font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;margin-bottom:4px}
+.nav-item:hover{background:rgba(255,255,255,.08);color:white}
+.nav-item.active{background:var(--caramel);color:white}
+.nav-item svg{flex-shrink:0}
+.sidebar-user{padding:16px 20px;border-top:1px solid rgba(255,255,255,.1)}
+.sidebar-user-name{font-weight:700;font-size:14px}
+.sidebar-user-role{font-size:11px;opacity:.7}
+.topbar{background:white;border-bottom:1px solid var(--border);padding:16px 32px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:10}
+.topbar h1{flex:1;font-size:22px;font-weight:800;color:var(--ink)}
+@media(max-width:768px){.topbar{padding:14px 16px}}
+.content{padding:28px 32px;flex:1}
+@media(max-width:768px){.content{padding:20px 16px}}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;margin-bottom:28px}
+.kpi-card{background:white;border-radius:20px;padding:22px;box-shadow:0 2px 10px rgba(166,123,91,.06)}
+.kpi-label{font-size:12px;color:var(--muted);font-weight:600;margin-bottom:8px}
+.kpi-value{font-size:30px;font-weight:800;color:var(--ink)}
+.kpi-sub{font-size:12px;color:var(--muted);margin-top:6px}
+.kpi-card-dark{background:linear-gradient(135deg,var(--espresso),var(--mocha));color:white}
+.kpi-card-dark .kpi-label,.kpi-card-dark .kpi-sub{color:rgba(255,255,255,.75)}
+.kpi-card-dark .kpi-value{color:white}
+.table-wrap{background:white;border-radius:20px;box-shadow:0 2px 10px rgba(166,123,91,.06);overflow:hidden}
+.table-head{padding:20px 24px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)}
+.table-head h2{flex:1;font-size:16px;font-weight:700;color:var(--ink)}
+table{width:100%;border-collapse:collapse}
+th{background:var(--milk);padding:12px 16px;text-align:left;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+td{padding:14px 16px;border-bottom:1px solid var(--border);font-size:14px;color:var(--ink)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--cream)}
+.tbl-scroll{overflow-x:auto}
+.admin-tag{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700}
+.admin-tag-vip{background:var(--rose);color:#8B3A2E}
+.admin-tag-old{background:var(--gold);color:#7A5A1F}
+.admin-tag-new{background:var(--milk);color:var(--mocha)}
+.admin-tag-done{background:var(--sage);color:#2D5A2D}
+.admin-tag-cancel{background:#FFE5E5;color:var(--danger)}
+.form-card{background:white;border-radius:20px;padding:28px;box-shadow:0 2px 10px rgba(166,123,91,.06);max-width:560px}
+.admin-input{width:100%;padding:13px 16px;border-radius:12px;border:1.5px solid var(--border);font-size:15px;color:var(--ink);background:white}
+.admin-btn-group{display:flex;gap:8px;flex-wrap:wrap}
+.admin-btn-option{padding:10px 16px;border-radius:10px;background:white;color:var(--ink);font-weight:600;font-size:13px;border:1.5px solid var(--border);cursor:pointer}
+.admin-btn-option.selected{background:var(--caramel);color:white;border-color:var(--caramel)}
+.btn-primary{padding:14px 24px;border-radius:12px;background:linear-gradient(135deg,var(--caramel),var(--mocha));color:white;font-size:15px;font-weight:700;box-shadow:0 6px 16px rgba(166,123,91,.25);cursor:pointer;border:none}
+.btn-secondary{padding:12px 20px;border-radius:12px;background:white;color:var(--mocha);font-size:14px;font-weight:600;border:1.5px solid var(--border);cursor:pointer}
+.btn-danger{padding:12px 20px;border-radius:12px;background:white;color:var(--danger);font-size:14px;font-weight:600;border:1.5px solid var(--danger);cursor:pointer}
+.btn-sm{padding:7px 14px;border-radius:8px;font-size:12px;font-weight:600}
+.margin-high{color:#4A8C4A;font-weight:700}.margin-mid{color:#C07820;font-weight:700}.margin-low{color:var(--danger);font-weight:700}
+.bar-wrap{display:flex;align-items:flex-end;gap:6px;height:160px;padding:0 8px}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:6px}
+.bar{width:100%;border-radius:6px;background:var(--latte);transition:height .6s}
+.bar-today{background:linear-gradient(180deg,var(--caramel),var(--mocha))}
+.bar-label{font-size:10px;color:var(--muted)}
+.bar-val{font-size:10px;color:var(--muted);height:14px}
+.visit-warn-red{display:inline-block;background:#FEE2E2;color:#B91C1C;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600}
+.visit-warn-orange{display:inline-block;background:#FEF3CD;color:#92400E;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:600}
+.hamburger{display:none;background:none;border:none;cursor:pointer;padding:4px}
+@media(max-width:768px){.hamburger{display:flex;flex-direction:column;gap:5px}.hamburger span{display:block;width:22px;height:2px;background:var(--ink);border-radius:2px}}
+.overlay-mask{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+.overlay-mask.show{display:block}
+
+/* ════════════════════════════════════
+   共用 Modal & Toast
+════════════════════════════════════ */
+.modal-overlay{position:fixed;inset:0;background:rgba(60,40,30,.5);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;backdrop-filter:blur(4px)}
+.modal{background:white;border-radius:24px;padding:28px;width:100%;max-width:420px}
+.modal h3{color:var(--ink);margin-bottom:12px;font-size:20px}
+.modal p{color:var(--muted);margin-bottom:20px;font-size:14px}
+.modal-actions{display:flex;gap:10px}
+.modal-actions button{flex:1;padding:12px;border-radius:12px;font-weight:600;cursor:pointer}
+#toast{position:fixed;bottom:28px;right:28px;background:var(--espresso);color:white;padding:12px 24px;border-radius:999px;font-size:14px;font-weight:600;opacity:0;transform:translateY(10px);transition:all .25s;z-index:9999;pointer-events:none}
+#toast.show{opacity:1;transform:translateY(0)}
+@media(max-width:480px){#toast{bottom:90px;right:auto;left:50%;transform:translateX(-50%) translateY(10px)}#toast.show{transform:translateX(-50%) translateY(0)}}
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════ 登入 ══════════════════════════ -->
+<div id="login-view">
+  <div class="login-card anim-fade">
+    <div class="login-logo">🌸</div>
+    <div class="login-title">初予營運POS</div>
+    <div class="login-sub">收費管理系統</div>
+    <div class="field">
+      <div class="field-label">身份</div>
+      <div class="btn-group-grid" style="grid-template-columns:1fr 1fr" id="roleGroup">
+        <button class="btn-option selected tap" onclick="setRole('admin',this)">👑 老闆</button>
+        <button class="btn-option tap" onclick="setRole('staff',this)">💆 員工</button>
+      </div>
+    </div>
+    <div class="field">
+      <div class="field-label">姓名</div>
+      <input class="input" id="loginName" placeholder="輸入你的名字"/>
+    </div>
+    <div class="field" style="margin-bottom:24px">
+      <div class="field-label">密碼</div>
+      <input class="input" id="loginPwd" type="password" placeholder="請輸入密碼"/>
+    </div>
+    <button class="btn-primary-full tap" onclick="doLogin()">登入系統</button>
+    
+  </div>
+</div>
+
+<!-- ══════════════════════════ 前台 App ══════════════════════════ -->
+<div id="app-view">
+  <div id="app-frame">
+    <div id="app-content"></div>
+    <div id="app-bottom-nav"></div>
+    <div id="app-modal-area"></div>
+  </div>
+</div>
+
+<!-- ══════════════════════════ 後台管理 ══════════════════════════ -->
+<div id="admin-view">
+  <div class="sidebar" id="adminSidebar">
+    <div class="sidebar-logo">
+      <div style="font-size:28px">🌸</div>
+      <div class="sidebar-logo-title">初予營運POS</div>
+      <div class="sidebar-logo-sub" id="adminSidebarSub">後台管理系統</div>
+    </div>
+    <nav class="sidebar-nav" id="adminNav"></nav>
+    <div class="sidebar-user">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="adminUserAvatar" style="width:36px;height:36px;border-radius:12px;background:var(--caramel);display:grid;place-items:center;color:white;font-weight:700">A</div>
+        <div>
+          <div class="sidebar-user-name" id="adminUserName">Amy</div>
+          <div class="sidebar-user-role" id="adminUserRole">老闆</div>
+        </div>
+      </div>
+      <button onclick="switchToApp()" style="margin-top:10px;width:100%;padding:10px;border-radius:10px;background:rgba(255,255,255,.15);color:rgba(255,255,255,.9);font-size:13px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px">
+        📱 切換前台模式
+      </button>
+      <button onclick="doLogout()" style="margin-top:8px;width:100%;padding:10px;border-radius:10px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.6);font-size:13px;font-weight:600">登出</button>
+    </div>
+  </div>
+  <div class="main" id="adminMain"></div>
+</div>
+
+<div id="toast"></div>
+<div class="overlay-mask" id="overlay" onclick="closeSidebar()"></div>
+<div id="global-modal"></div>
+
+<script>
+window.onerror=function(msg,src,line,col,err){console.error('JS Error:',msg,'line:',line);return false};
+/* ════════════════════════════════════
+   資料層 - 共用 localStorage KEY
+════════════════════════════════════ */
+const KEY={customers:'bs_cu',services:'bs_sv',transactions:'bs_tx',appointments:'bs_ap',wallets:'bs_wl',user:'bs_us',staff:'bs_staff'};
+const load=(k,fb)=>{try{const d=localStorage.getItem(k);return d?JSON.parse(d):fb}catch{return fb}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}};
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36);
+const today=()=>{const d=new Date();return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+const thisMonth=()=>today().slice(0,7);
+const fm=n=>`$${Math.round(n||0).toLocaleString()}`;
+const pct=n=>`${(n||0).toFixed(1)}%`;
+const fmDate=d=>{if(!d)return'-';const dt=new Date(d);return`${dt.getMonth()+1}/${dt.getDate()}`};
+const esc=s=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const daysSince=d=>{if(!d)return -1;return Math.floor((new Date()-new Date(d))/86400000)};
+const calcLevel=(spent,visits)=>{if(!visits||visits===0)return'新客';if((spent||0)>=30000)return'VIP';if((spent||0)>=3000)return'舊客';return'新客'};
+const mgCls=p=>p>=55?'mg-high':p>=35?'mg-mid':'mg-low';
+const lvCls=l=>l==='VIP'?'tag-vip':l==='舊客'?'tag-old':'tag-new';
+const marginCls=p=>p>=55?'margin-high':p>=35?'margin-mid':'margin-low';
+const visitWarnBadge=lv=>{const d=daysSince(lv);if(d<0)return'';if(d>=60)return`<span class="visit-warn-red">⚠️ ${d}天未到訪</span>`;if(d>=30)return`<span class="visit-warn-orange">🕐 ${d}天未到訪</span>`;return''};
+
+/* 種子資料 */
+const SEED_SVC=[
+  {id:'s1',name:'深層清潔',price:1200,cost:280,category:'臉部',active:true},
+  {id:'s2',name:'保濕導入',price:1500,cost:380,category:'臉部',active:true},
+  {id:'s3',name:'美白淡斑',price:2000,cost:560,category:'臉部',active:true},
+  {id:'s4',name:'抗衰老護理',price:2800,cost:850,category:'臉部',active:true},
+  {id:'s5',name:'痘痘肌管理',price:1800,cost:420,category:'臉部',active:true},
+  {id:'s6',name:'小氣泡清潔',price:800,cost:150,category:'其他',active:true},
+  {id:'s7',name:'LED光療',price:1000,cost:80,category:'其他',active:true},
+  {id:'s8',name:'全身去角質',price:1600,cost:320,category:'身體',active:true},
+];
+const SEED_CU=[
+  {id:'c1',name:'王小美',phone:'0912345678',lineId:'',birthday:'1992-08-15',skinType:'乾性',level:'VIP',totalSpent:32600,visits:18,lastVisit:'2026-04-28',notes:'對果酸過敏'},
+  {id:'c2',name:'林雅婷',phone:'0923456789',lineId:'',birthday:'1995-03-22',skinType:'油性',level:'舊客',totalSpent:4800,visits:3,lastVisit:'2026-03-20',notes:''},
+  {id:'c3',name:'陳美玲',phone:'0934567890',lineId:'',birthday:'1988-11-05',skinType:'混合性',level:'VIP',totalSpent:38500,visits:21,lastVisit:'2026-04-29',notes:'偏好晚間時段'},
+  {id:'c4',name:'張怡君',phone:'0945678901',lineId:'',birthday:'1990-06-30',skinType:'敏感',level:'新客',totalSpent:1600,visits:1,lastVisit:'2026-02-15',notes:''},
+];
+const SEED_TX=[
+  {id:'t1',cid:'c1',cname:'王小美',sid:'s3',sname:'美白淡斑',orig:2000,paid:2000,cost:560,pm:'現金',status:'完成',date:today(),staff:'Amy'},
+  {id:'t2',cid:'c3',cname:'陳美玲',sid:'s4',sname:'抗衰老護理',orig:2800,paid:2800,cost:850,pm:'LINE Pay',status:'完成',date:today(),staff:'Amy'},
+  {id:'t3',cid:'c1',cname:'王小美',sid:'s1',sname:'深層清潔',orig:1200,paid:1080,cost:280,pm:'現金',status:'完成',date:'2026-04-25',staff:'Amy'},
+];
+const SEED_STAFF=[{id:'u1',name:'Amy',role:'admin',pwd:'0000',active:true,joinDate:'2024-01-01'},{id:'u2',name:'Bella',role:'staff',pwd:'1111',active:true,joinDate:'2024-06-01'}];
+const SEED_WL=[
+  {id:'w1',cid:'c1',cname:'王小美',type:'儲值',amount:10000,sign:10000,date:'2026-04-01',note:'首次儲值送10%',staff:'Amy'},
+  {id:'w2',cid:'c1',cname:'王小美',type:'扣款',amount:1080,sign:-1080,date:'2026-04-25',note:'深層清潔',staff:'Amy'},
+];
+
+/* 全域狀態 */
+const D={
+  user:load(KEY.user,null),
+  customers:load(KEY.customers,SEED_CU),
+  services:load(KEY.services,SEED_SVC),
+  transactions:load(KEY.transactions,SEED_TX),
+  appointments:load(KEY.appointments,[]),
+  wallets:load(KEY.wallets,SEED_WL),
+  staff:load(KEY.staff,SEED_STAFF),
+};
+const persist=()=>{
+  save(KEY.user,D.user);save(KEY.customers,D.customers);save(KEY.services,D.services);
+  save(KEY.transactions,D.transactions);save(KEY.appointments,D.appointments);
+  save(KEY.wallets,D.wallets);save(KEY.staff,D.staff);
+};
+const walletBal=cid=>D.wallets.filter(w=>w.cid===cid).reduce((s,w)=>s+(w.sign||0),0);
+const addTx=tx=>{
+  D.transactions=[tx,...D.transactions];
+  if(tx.pm==='儲值扣款')D.wallets=[{id:uid(),cid:tx.cid,cname:tx.cname,type:'扣款',amount:tx.paid,sign:-tx.paid,date:tx.date,note:tx.sname,staff:tx.staff},...D.wallets];
+  D.customers=D.customers.map(c=>{if(c.id!==tx.cid)return c;const ns=(c.totalSpent||0)+tx.paid,nv=(c.visits||0)+1;return{...c,totalSpent:ns,visits:nv,lastVisit:tx.date,level:calcLevel(ns,nv)}});
+  persist();toast('✅ 消費已記錄！');
+};
+
+/* 前端狀態 */
+let appS={page:{name:'dashboard'},modal:null};
+let adminS={page:'dashboard',subPage:null,modal:null};
+let currentMode='login'; // login | app | admin
+let loginRole='admin';
+
+/* ────────── Toast ────────── */
+let _tt;
+const toast=(msg,ms=2200)=>{const el=document.getElementById('toast');if(!el)return;el.textContent=msg;el.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('show'),ms)};
+
+/* ────────── SVG 圖示 ────────── */
+const Iapp={
+  plus:(s=24)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+  back:(s=24)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  user:(s=24)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  cal:(s=24)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" stroke-width="2"/><path d="M3 9h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  wallet:(s=22)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 13h2M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  chart:(s=24)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M5 20V10M12 20V4M19 20v-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+  sparkle:(s=22)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M12 3l2 7 7 2-7 2-2 7-2-7-7-2 7-2 2-7z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>`,
+  check:(s=32)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  phone:(s=14)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  edit:(s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M14 4l6 6L10 20H4v-6L14 4z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  trash:(s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  logout:(s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M15 4h3a2 2 0 012 2v12a2 2 0 01-2 2h-3M10 17l-5-5 5-5M5 12h12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  search:(s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  download:(s=16)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><path d="M12 16l-4-4h3V4h2v8h3l-4 4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 20H4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  admin:(s=20)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="3" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="14" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/><rect x="3" y="14" width="7" height="7" rx="1" stroke="currentColor" stroke-width="2"/></svg>`,
+};
+const Iadmin={
+  dash:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1H4a1 1 0 01-1-1v-9z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  chart:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 20l4-8 4 4 4-6 4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  tx:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  user:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  svc:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 2l2.4 7.6H22l-6.2 4.5 2.4 7.6L12 17.2l-6.2 4.5 2.4-7.6L2 9.6h7.6L12 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>`,
+  wallet:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="6" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 13h2M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  staff:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2M16 3.13a4 4 0 010 7.75M21 21v-2a4 4 0 00-3-3.87" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  settings:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z" stroke="currentColor" stroke-width="2"/></svg>`,
+  plus:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>`,
+  dl:`<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 16l-4-4h3V4h2v8h3l-4 4z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 20H4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  edit:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
+  trash:`<svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  app:`<svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="5" y="2" width="14" height="20" rx="2" stroke="currentColor" stroke-width="2"/><path d="M12 18h.01" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>`,
+};
+
+/* ════════════════════════════════════
+   登入邏輯
+════════════════════════════════════ */
+window.setRole=(role,btn)=>{
+  loginRole=role;
+  document.querySelectorAll('#roleGroup .btn-option').forEach(b=>b.classList.remove('selected'));
+  btn.classList.add('selected');
+  const nameEl=document.getElementById('loginName');
+  const pwdEl=document.getElementById('loginPwd');
+  if(role==='admin'){nameEl.value='';pwdEl.value=''}
+  else{nameEl.value='';pwdEl.value=''}
+};
+window.doLogin=()=>{
+  const name=document.getElementById('loginName')?.value.trim();
+  const pwd=document.getElementById('loginPwd')?.value;
+  if(!name){toast('⚠️ 請輸入姓名');return}
+  if(!pwd){toast('⚠️ 請輸入密碼');return}
+  const validPwd=loginRole==='admin'?'0000':'1111';
+  if(pwd!==validPwd){toast('⚠️ 密碼錯誤');return}
+  D.user={name,role:loginRole,loginAt:today()};persist();
+  toast(`歡迎回來，${name} 👋`);
+  if(loginRole==='admin'){showAdmin()}else{showApp()}
+};
+window.doLogout=()=>{
+  showGlobalModal({type:'confirm',title:'登出',msg:'確定要登出嗎？',onConfirm:()=>{
+    D.user=null;save(KEY.user,null);closeGlobalModal();
+    document.getElementById('login-view').style.display='flex';
+    document.getElementById('app-view').classList.remove('active');
+    document.getElementById('admin-view').classList.remove('active');
+    currentMode='login';
+  }});
+};
+const showApp=()=>{
+  currentMode='app';
+  document.getElementById('login-view').style.display='none';
+  document.getElementById('app-view').classList.add('active');
+  document.getElementById('admin-view').classList.remove('active');
+  appS={page:{name:'dashboard'},modal:null};
+  renderApp();
+};
+const showAdmin=()=>{
+  currentMode='admin';
+  document.getElementById('login-view').style.display='none';
+  document.getElementById('app-view').classList.remove('active');
+  document.getElementById('admin-view').classList.add('active');
+  adminS={page:'dashboard',subPage:null,modal:null};
+  renderAdmin();
+};
+window.switchToApp=()=>{closeSidebar();showApp()};
+window.switchToAdmin=()=>{if(D.user?.role==='admin')showAdmin();else toast('⚠️ 僅老闆可進入後台')};
+
+/* ════════════════════════════════════
+   全域 Modal
+════════════════════════════════════ */
+const showGlobalModal=m=>{
+  const el=document.getElementById('global-modal');
+  el.innerHTML=`<div class="modal-overlay" onclick="closeGlobalModal()"><div class="modal" onclick="event.stopPropagation()">
+    <h3>${m.title||'確認'}</h3><p>${esc(m.msg||'')}</p>
+    <div class="modal-actions">
+      ${m.type==='confirm'?`<button style="background:var(--milk);color:var(--mocha)" class="tap" onclick="closeGlobalModal()">取消</button>`:''}
+      <button style="background:${m.danger?'var(--danger)':'var(--caramel)'};color:white" class="tap" onclick="doGlobalConfirm()">確認</button>
+    </div>
+  </div></div>`;
+  el._cb=m.onConfirm;
+};
+window.closeGlobalModal=()=>{document.getElementById('global-modal').innerHTML='';};
+window.doGlobalConfirm=()=>{const cb=document.getElementById('global-modal')._cb;if(cb)cb();else closeGlobalModal()};
+
+/* ════════════════════════════════════
+   CSV & 備份匯出
+════════════════════════════════════ */
+function exportCSV(type){
+  let rows=[],filename='';
+  if(type==='transactions'){
+    filename='消費紀錄.csv';
+    rows=[['日期','客戶','療程','原價','實收','成本','毛利','毛利率','付款','狀態','員工']];
+    D.transactions.forEach(t=>{const p=t.paid-(t.cost||0),mg=t.paid>0?(p/t.paid*100).toFixed(1)+'%':'0%';rows.push([t.date,t.cname,t.sname,t.orig,t.paid,t.cost||0,p,mg,t.pm,t.status,t.staff||''])});
+  }else if(type==='customers'){
+    filename='客戶資料.csv';
+    rows=[['姓名','電話','LINE ID','生日','膚質','等級','累積消費','來店次數','最後到訪','備註']];
+    D.customers.forEach(c=>rows.push([c.name,c.phone,c.lineId||'',c.birthday||'',c.skinType||'',c.level,c.totalSpent||0,c.visits||0,c.lastVisit||'',c.notes||'']));
+  }else if(type==='services'){
+    filename='療程資料.csv';
+    rows=[['名稱','分類','售價','成本','毛利','毛利率','狀態']];
+    D.services.forEach(s=>{const p=s.price-s.cost,mg=s.price>0?(p/s.price*100).toFixed(1)+'%':'0%';rows.push([s.name,s.category,s.price,s.cost,p,mg,s.active?'啟用':'停用'])});
+  }
+  const csv=rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=filename;a.click();
+  toast('✅ 已匯出 '+filename);
+}
+window.exportCSV=exportCSV;
+window.backupAll=()=>{
+  const data={exportDate:today(),customers:D.customers,services:D.services,transactions:D.transactions,appointments:D.appointments,wallets:D.wallets,staff:D.staff};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`初予營運POS備份_${today()}.json`;a.click();
+  toast('✅ 備份下載成功');
+};
+
+/* ════════════════════════════════════
+   ▓▓▓▓▓▓▓▓ 前台 App ▓▓▓▓▓▓▓▓
+════════════════════════════════════ */
+const goApp=(name,params={})=>{appS.page={name,...params};renderApp()};
+const showAppModal=m=>{appS.modal=m;renderApp()};
+const closeAppModal=()=>{appS.modal=null;renderApp()};
+window.closeModal=closeAppModal;
+window.doConfirm=()=>{const m=appS.modal;if(m?.onConfirm)m.onConfirm();else closeAppModal()};
+
+function renderApp(){
+  try{
+  if(currentMode!=='app')return;
+  const p=appS.page.name;
+  const noNav=['addTx','customerEdit','txDone'];
+  const showNav=!noNav.includes(p)&&!appS.page.editSvc&&!appS.page.editApt&&!appS.page.editWl;
+  const map={
+    dashboard:rDashboard,addTx:rAddTx,txDone:rTxDone,
+    customers:rCustomers,customerDetail:rCustomerDetail,customerEdit:rCustomerEdit,
+    services:rServices,appointments:rAppointments,wallets:rWallets,reports:rReports,
+  };
+  document.getElementById('app-content').innerHTML=(map[p]||rDashboard)();
+  document.getElementById('app-bottom-nav').innerHTML=showNav?rBottomNav():'';
+  document.getElementById('app-modal-area').innerHTML=rAppModal();
+  }catch(e){console.error('renderApp error:',e);document.getElementById('app-content').innerHTML='<div style="padding:20px;color:red">頁面載入錯誤: '+e.message+'</div>';}
+}
+window.go=goApp;
+
+/* ─── Dashboard ─── */
+function rDashboard(){
+  const u=D.user,isAdmin=u.role==='admin';
+  const tTx=D.transactions.filter(t=>t.date===today()&&t.status==='完成');
+  const tRev=tTx.reduce((s,t)=>s+t.paid,0),tProfit=tTx.reduce((s,t)=>s+(t.paid-(t.cost||0)),0);
+  const mTx=D.transactions.filter(t=>t.date.startsWith(thisMonth())&&t.status==='完成');
+  const mRev=mTx.reduce((s,t)=>s+t.paid,0),mProfit=mTx.reduce((s,t)=>s+(t.paid-(t.cost||0)),0);
+  const mMg=mRev>0?mProfit/mRev*100:0;
+  const tApts=D.appointments.filter(a=>a.date===today());
+  const h=new Date().getHours();const gr=h<12?'早安':h<18?'午安':'晚安';
+  return `<div style="padding:24px 24px 20px;background:linear-gradient(180deg,var(--milk) 0%,var(--cream) 100%);display:flex;justify-content:space-between;align-items:flex-start">
+    <div><p style="font-size:13px;color:var(--muted)">${gr}，${esc(u.name)} ${u.role==='admin'?'👑':'💆'}</p><h2 style="font-size:22px;font-weight:700;color:var(--ink);margin-top:2px">${today()}</h2></div>
+    <div style="display:flex;gap:8px">
+      ${isAdmin?`<button class="icon-btn tap" onclick="switchToAdmin()" title="進入後台">${Iapp.admin()}</button>`:''}
+      <button class="icon-btn tap" onclick="doLogout()">${Iapp.logout()}</button>
+    </div>
+  </div>
+  <div class="scroll-area no-scrollbar">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="card" style="background:linear-gradient(135deg,var(--espresso),var(--mocha));color:white;padding:20px;margin:0">
+        <div style="font-size:11px;opacity:.85">今日營業額</div>
+        <div style="font-size:26px;font-weight:700;margin-top:4px">${fm(tRev)}</div>
+        ${isAdmin?`<div style="font-size:11px;opacity:.75;margin-top:4px">毛利 ${fm(tProfit)}</div>`:''}
+      </div>
+      <div class="card" style="background:linear-gradient(135deg,var(--rose),#E8A8A0);color:white;padding:20px;margin:0">
+        <div style="font-size:11px;opacity:.85">今日客數</div>
+        <div style="font-size:26px;font-weight:700;margin-top:4px">${tTx.length}</div>
+        <div style="font-size:11px;opacity:.75;margin-top:4px">預約 ${tApts.length} 筆</div>
+      </div>
+    </div>
+    ${isAdmin?`<div class="card" style="background:linear-gradient(135deg,var(--sage),#9DBA9D);color:white;padding:18px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-size:11px;opacity:.85">本月營業額</div><div style="font-size:24px;font-weight:700;margin-top:2px">${fm(mRev)}</div></div>
+        <div style="text-align:right"><div style="font-size:11px;opacity:.85">毛利率</div><div style="font-size:24px;font-weight:700;margin-top:2px">${pct(mMg)}</div></div>
+      </div>
+    </div>`:''}
+    <button class="tap" style="width:100%;background:linear-gradient(135deg,var(--caramel),var(--mocha));color:white;border-radius:24px;padding:24px 22px;text-align:left;margin-bottom:14px;display:flex;align-items:center;gap:16px;box-shadow:0 8px 24px rgba(166,123,91,.28);border:none" onclick="go('addTx')">
+      <div style="width:52px;height:52px;border-radius:18px;background:rgba(255,255,255,.2);display:grid;place-items:center">${Iapp.plus(28)}</div>
+      <div><div style="font-size:18px;font-weight:700">新增消費</div><div style="font-size:13px;opacity:.8;margin-top:3px">3 步完成記帳</div></div>
+    </button>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="big-btn tap" onclick="go('customers')">
+        <div class="big-btn-icon" style="background:var(--rose);color:#8B3A2E">${Iapp.user()}</div>
+        <div><div class="big-btn-label">客戶管理</div><div class="big-btn-sub">${D.customers.length} 位</div></div>
+      </div>
+      <div class="big-btn tap" onclick="go('appointments')">
+        <div class="big-btn-icon" style="background:var(--sage);color:#3D5A3D">${Iapp.cal()}</div>
+        <div><div class="big-btn-label">預約</div><div class="big-btn-sub">今日 ${tApts.length} 筆</div></div>
+      </div>
+      <div class="big-btn tap" onclick="go('services')">
+        <div class="big-btn-icon" style="background:var(--gold);color:#7A5A1F">${Iapp.sparkle()}</div>
+        <div><div class="big-btn-label">療程管理</div><div class="big-btn-sub">${D.services.filter(x=>x.active).length} 項</div></div>
+      </div>
+      <div class="big-btn tap" onclick="go('wallets')">
+        <div class="big-btn-icon" style="background:var(--lavender);color:#5C4B7C">${Iapp.wallet()}</div>
+        <div><div class="big-btn-label">儲值錢包</div><div class="big-btn-sub">會員儲值</div></div>
+      </div>
+    </div>
+    ${isAdmin?`<div class="big-btn tap" style="flex-direction:row;align-items:center;min-height:auto;padding:18px 20px;margin-bottom:14px" onclick="go('reports')">
+      <div class="big-btn-icon" style="background:linear-gradient(135deg,var(--espresso),var(--mocha));color:white">${Iapp.chart(22)}</div>
+      <div style="flex:1;margin-left:12px"><div class="big-btn-label">毛利報表</div><div class="big-btn-sub">毛利分析、療程排行</div></div>
+      <div style="color:var(--muted);font-size:20px">›</div>
+    </div>`:''}
+    ${tApts.length>0?`<h3 style="font-size:16px;color:var(--ink);margin-bottom:12px">今日預約</h3>${tApts.slice(0,3).map(a=>`<div class="card" style="padding:14px;margin-bottom:8px"><div style="display:flex;align-items:center;gap:12px"><div style="width:46px;height:46px;border-radius:14px;background:var(--milk);display:grid;place-items:center;color:var(--mocha);font-weight:700;font-size:13px">${a.time||'--'}</div><div style="flex:1"><div style="font-weight:600;color:var(--ink)">${esc(a.cname)}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(a.sname)}</div></div><span style="font-size:11px;padding:3px 10px;border-radius:999px;background:${a.status==='完成'?'var(--success)':'var(--latte)'};color:${a.status==='完成'?'white':'var(--espresso)'}">${a.status}</span></div></div>`).join('')}`:''}
+  </div>`;
+}
+
+/* ─── 新增消費 3步 ─── */
+function rAddTx(){
+  const p=appS.page;
+  if(!p.step)p.step=1;
+  if(p.step===1){
+    const q=p.q||'';
+    const list=D.customers.filter(c=>!q||(c.name+c.phone).includes(q));
+    return `<div class="app-header"><button class="icon-btn tap" onclick="go('dashboard')">${Iapp.back()}</button><h1>新增消費</h1></div>
+    <div class="progress-bar"><div class="active"></div><div></div><div></div></div>
+    <div style="padding:0 20px 12px"><div style="position:relative">
+      <div style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)">${Iapp.search()}</div>
+      <input class="app-input" style="padding-left:44px" placeholder="搜尋客戶姓名或電話" value="${esc(q)}" oninput="appS.page.q=this.value;renderApp()"/>
+    </div></div>
+    <div class="scroll-area no-scrollbar">
+      <button class="app-btn-secondary tap" style="margin-bottom:12px" onclick="go('customerEdit',{isNew:true,fromAddTx:true})">＋ 新增客戶</button>
+      ${list.map(c=>{const bal=walletBal(c.id),ds=daysSince(c.lastVisit);
+        return `<div class="card tap" style="padding:14px;margin-bottom:8px" onclick="appSelectCust('${c.id}')">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div class="avatar">${esc(c.name[0])}</div>
+            <div style="flex:1">
+              <div style="display:flex;align-items:center;gap:8px"><span style="font-weight:600;color:var(--ink)">${esc(c.name)}</span><span class="tag ${lvCls(c.level)}">${c.level}</span></div>
+              <div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(c.phone)} · ${c.visits||0}次 · 最後${fmDate(c.lastVisit)}</div>
+              ${ds>=0&&ds>=60?`<span class="visit-warn visit-red">⚠️ ${ds}天未到訪</span>`:ds>=0&&ds>=30?`<span class="visit-warn">🕐 ${ds}天未到訪</span>`:''}
+              ${bal>0?`<div style="font-size:11px;color:#5C4B7C;margin-top:3px">💳 儲值餘額 ${fm(bal)}</div>`:''}
+            </div>
+            <div style="color:var(--muted);font-size:20px">›</div>
+          </div>
+        </div>`;}).join('')}
+    </div>`;
+  }
+  if(p.step===2){
+    const cat=p.cat||'全部';
+    const list=D.services.filter(s=>s.active&&(cat==='全部'||s.category===cat));
+    return `<div class="app-header"><button class="icon-btn tap" onclick="appS.page.step=1;renderApp()">${Iapp.back()}</button><h1>選擇療程</h1></div>
+    <div class="progress-bar"><div class="active"></div><div class="active"></div><div></div></div>
+    <div style="display:flex;gap:8px;padding:0 20px 14px;overflow-x:auto" class="no-scrollbar">
+      ${['全部','臉部','身體','其他'].map(c=>`<button style="min-width:52px;padding:6px 14px;border-radius:999px;font-weight:600;font-size:12px;white-space:nowrap;background:${cat===c?'var(--caramel)':'white'};color:${cat===c?'white':'var(--mocha)'};border:1.5px solid ${cat===c?'var(--caramel)':'var(--border)'}" onclick="appS.page.cat='${c}';renderApp()">${c}</button>`).join('')}
+    </div>
+    <div class="scroll-area no-scrollbar">
+      ${list.map(s=>{const profit=s.price-s.cost,mg=s.price>0?profit/s.price*100:0;
+        return `<div class="card tap" style="padding:14px;margin-bottom:8px" onclick="appSelectSvc('${s.id}')">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="flex:1">
+              <div style="font-weight:600;color:var(--ink);margin-bottom:4px">${esc(s.name)}</div>
+              <div style="font-size:12px;color:var(--muted)">售價 ${fm(s.price)} · 成本 ${fm(s.cost)} · <span class="${mgCls(mg)}">${pct(mg)}</span></div>
+            </div>
+            <div style="text-align:right"><div style="font-size:11px;color:var(--muted)">毛利</div><div style="font-weight:700;color:var(--caramel)">${fm(profit)}</div></div>
+            <div style="color:var(--muted);font-size:20px">›</div>
+          </div>
+        </div>`;}).join('')}
+    </div>`;
+  }
+  if(p.step===3){
+    const svc=p.svc,cust=p.cust;
+    const paid=parseInt(p.paid)||svc.price;
+    const profit=paid-(svc.cost||0),mg=paid>0?profit/paid*100:0;
+    const bal=walletBal(cust.id);
+    return `<div class="app-header"><button class="icon-btn tap" onclick="appS.page.step=2;renderApp()">${Iapp.back()}</button><h1>確認付款</h1></div>
+    <div class="progress-bar"><div class="active"></div><div class="active"></div><div class="active"></div></div>
+    <div class="scroll-area no-scrollbar">
+      <div class="card" style="background:linear-gradient(135deg,var(--milk),var(--latte));padding:18px;margin-bottom:16px">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="avatar">${esc(cust.name[0])}</div>
+          <div><div style="font-weight:700;color:var(--ink)">${esc(cust.name)}</div><div style="font-size:13px;color:var(--muted);margin-top:2px">${esc(svc.name)}</div></div>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:16px"><div class="field-label">實收金額 <span style="color:var(--muted);font-size:11px">原價 ${fm(svc.price)}</span></div>
+        <input class="app-input" type="number" value="${paid}" oninput="appS.page.paid=this.value;renderApp()"/>
+      </div>
+      <div class="card" style="background:${mg>=55?'linear-gradient(135deg,#6FAB6E,#87B884)':mg>=35?'linear-gradient(135deg,#D4A030,#C07820)':'linear-gradient(135deg,var(--danger),#C05A57)'};color:white;padding:16px;margin-bottom:16px">
+        <div style="display:flex;justify-content:space-between">
+          <div><div style="font-size:11px;opacity:.85">毛利</div><div style="font-size:20px;font-weight:700">${fm(profit)}</div></div>
+          <div style="text-align:right"><div style="font-size:11px;opacity:.85">毛利率</div><div style="font-size:20px;font-weight:700">${pct(mg)}</div></div>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:16px"><div class="field-label">收費方式</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">
+          ${['現金','LINE Pay','轉帳','刷卡','儲值扣款','其他'].map(m=>`<button class="btn-option-app tap ${p.pm===m?'selected':''}" style="text-align:center" onclick="appS.page.pm='${m}';appS.page.pmNote='';renderApp()">
+            ${m}${m==='儲值扣款'?`<div style="font-size:9px;margin-top:2px;${p.pm===m?'opacity:.85':'color:var(--muted)'}">餘額${fm(bal)}</div>`:''}</button>`).join('')}
+        </div>
+        ${p.pm==='轉帳'?`<div style="margin-top:10px"><div class="field-label" style="margin-bottom:6px">轉帳末五碼</div><input class="app-input" maxlength="5" inputmode="numeric" placeholder="例：12345" value="${esc(p.pmNote||'')}" oninput="appS.page.pmNote=this.value" style="letter-spacing:4px;font-size:18px;font-weight:700"/></div>`:''}
+        ${p.pm==='刷卡'?`<div style="margin-top:10px"><div class="field-label" style="margin-bottom:6px">卡號末四碼</div><input class="app-input" maxlength="4" inputmode="numeric" placeholder="例：5678" value="${esc(p.pmNote||'')}" oninput="appS.page.pmNote=this.value" style="letter-spacing:4px;font-size:18px;font-weight:700"/></div>`:''}
+        ${p.pm==='其他'?`<div style="margin-top:10px"><div class="field-label" style="margin-bottom:6px">備註說明</div><input class="app-input" placeholder="請輸入收費方式" value="${esc(p.pmNote||'')}" oninput="appS.page.pmNote=this.value"/></div>`:''}
+      </div>
+      <div class="field"><div class="field-label">服務員工</div>
+        <select class="app-input" style="appearance:auto" onchange="appS.page.staffName=this.value">
+          ${D.staff.map(st=>`<option value="${esc(st.name)}" ${p.staffName===st.name?'selected':''}>${esc(st.name)}</option>`).join('')}
+        </select>
+      </div>
+      <button class="app-btn-primary tap" onclick="confirmTx()">✓ 完成記帳</button>
+    </div>`;
+  }
+}
+window.confirmTx=()=>{
+  const p=appS.page;
+  if(p.pm==='儲值扣款'&&walletBal(p.cust.id)<(parseInt(p.paid)||0)){toast('⚠️ 儲值餘額不足');return}
+  if(p.pm==='轉帳'&&(!p.pmNote||p.pmNote.trim().length<3)){toast('⚠️ 請輸入轉帳末五碼');return}
+  if(p.pm==='刷卡'&&(!p.pmNote||p.pmNote.trim().length<3)){toast('⚠️ 請輸入卡號末四碼');return}
+  const pmLabel=p.pm+(p.pmNote?`（${p.pmNote.trim()}）`:'');
+  const tx={id:uid(),cid:p.cust.id,cname:p.cust.name,sid:p.svc.id,sname:p.svc.name,orig:p.svc.price,paid:parseInt(p.paid)||0,cost:p.svc.cost||0,pm:pmLabel,status:'完成',date:today(),staff:p.staffName||D.user.name};
+  addTx(tx);goApp('txDone',{tx,custId:p.cust.id});
+};
+
+/* ─── 完成頁 ─── */
+function rTxDone(){
+  const tx=appS.page.tx,cust=D.customers.find(c=>c.id===appS.page.custId)||{name:tx.cname};
+  const profit=tx.paid-(tx.cost||0),mg=tx.paid>0?profit/tx.paid*100:0;
+  return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 28px;text-align:center">
+    <div class="anim-pop" style="width:80px;height:80px;border-radius:999px;background:linear-gradient(135deg,var(--success),#6FAB6E);display:grid;place-items:center;color:white;margin-bottom:20px">${Iapp.check(36)}</div>
+    <h2 style="font-size:22px;font-weight:700;color:var(--ink);margin-bottom:6px">記帳完成！</h2>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:28px">${esc(cust.name)} · ${esc(tx.sname)}</p>
+    <div class="card anim-slide" style="width:100%;text-align:left;padding:22px;margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span style="color:var(--muted)">實收</span><span style="font-weight:700;color:var(--ink);font-size:18px">${fm(tx.paid)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span style="color:var(--muted)">毛利</span><span class="${mgCls(mg)}">${fm(profit)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:12px"><span style="color:var(--muted)">毛利率</span><span class="${mgCls(mg)}">${pct(mg)}</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:var(--muted)">付款方式</span><span style="color:var(--ink)">${tx.pm}</span></div>
+    </div>
+    <div style="display:flex;gap:10px;width:100%">
+      <button class="app-btn-secondary tap" style="flex:1" onclick="go('customerDetail',{cid:'${cust.id||tx.cid}'})">查看客戶</button>
+      <button class="app-btn-primary tap" style="flex:1" onclick="go('addTx')">繼續記帳</button>
+    </div>
+  </div>`;
+}
+
+/* ─── 客戶管理 ─── */
+function rCustomers(){
+  const q=appS.page.q||'',filter=appS.page.filter||'全部',bmonth=appS.page.bmonth||'';
+  const list=D.customers.filter(c=>{
+    if(q&&!(c.name+c.phone).includes(q))return false;
+    if(filter!=='全部'&&c.level!==filter)return false;
+    if(bmonth){const bm=(c.birthday||'').replace(/\//g,'-').split('-')[1];if(bm!==bmonth)return false;}
+    return true;
+  });
+  return `<div class="app-header"><button class="icon-btn tap" onclick="go('dashboard')">${Iapp.back()}</button><h1>客戶管理</h1>
+    <div style="display:flex;gap:6px">
+      <button class="icon-btn tap" onclick="exportCSV('customers')" title="匯出CSV">${Iapp.download()}</button>
+      <button class="icon-btn icon-btn-primary tap" onclick="go('customerEdit',{isNew:true})">${Iapp.plus(20)}</button>
+    </div>
+  </div>
+  <div style="padding:0 20px 10px">
+    <div style="position:relative;margin-bottom:10px">
+      <div style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)">${Iapp.search()}</div>
+      <input class="app-input" style="padding-left:44px" placeholder="搜尋姓名、電話" value="${esc(q)}" oninput="appS.page.q=this.value;renderApp()"/>
+    </div>
+    <div style="display:flex;gap:6px;overflow-x:auto;margin-bottom:6px" class="no-scrollbar">
+      ${['全部','VIP','舊客','新客'].map(f=>`<button style="min-width:52px;padding:6px 14px;border-radius:999px;font-weight:600;font-size:12px;white-space:nowrap;background:${filter===f?'var(--caramel)':'white'};color:${filter===f?'white':'var(--mocha)'};border:1.5px solid ${filter===f?'var(--caramel)':'var(--border)'}" onclick="appS.page.filter='${f}';renderApp()">${f}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:6px;overflow-x:auto" class="no-scrollbar">
+      <button style="padding:5px 10px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;background:${!bmonth?'var(--mocha)':'white'};color:${!bmonth?'white':'var(--mocha)'};border:1.5px solid ${!bmonth?'var(--mocha)':'var(--border)'}" onclick="appS.page.bmonth='';renderApp()">🎂 全月份</button>
+      ${['01','02','03','04','05','06','07','08','09','10','11','12'].map(m=>`<button style="padding:5px 10px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap;background:${bmonth===m?'var(--rose)':'white'};color:${bmonth===m?'var(--espresso)':'var(--mocha)'};border:1.5px solid ${bmonth===m?'var(--rose)':'var(--border)'}" onclick="appS.page.bmonth='${m}';renderApp()">${parseInt(m)}月</button>`).join('')}
+    </div>
+  </div>
+  <div class="scroll-area no-scrollbar">
+    <div style="color:var(--muted);font-size:12px;margin-bottom:8px">${list.length} 位客戶</div>
+    ${list.map(c=>{const bal=walletBal(c.id),ds=daysSince(c.lastVisit);
+      return `<div class="card tap" style="padding:14px;margin-bottom:8px" onclick="go('customerDetail',{cid:'${c.id}'})">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="avatar">${esc(c.name[0])}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-weight:600;color:var(--ink)">${esc(c.name)}</span><span class="tag ${lvCls(c.level)}">${c.level}</span></div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(c.phone)} · ${c.visits||0}次 · 最後${fmDate(c.lastVisit)}</div>
+            ${ds>=0&&ds>=60?`<span class="visit-warn visit-red">⚠️ ${ds}天未到訪</span>`:ds>=0&&ds>=30?`<span class="visit-warn">🕐 ${ds}天未到訪</span>`:''}
+            ${bal>0?`<div style="font-size:11px;color:#5C4B7C;margin-top:2px">💳 ${fm(bal)}</div>`:''}
+          </div>
+          <div style="color:var(--muted);font-size:20px;flex-shrink:0">›</div>
+        </div>
+      </div>`;}).join('')}
+  </div>`;
+}
+
+/* ─── 客戶詳情 ─── */
+function rCustomerDetail(){
+  const c=D.customers.find(x=>x.id===appS.page.cid);
+  if(!c)return`<div class="app-header"><button class="icon-btn tap" onclick="go('customers')">${Iapp.back()}</button><h1>找不到客戶</h1></div>`;
+  const isAdmin=D.user.role==='admin';
+  const myTx=D.transactions.filter(t=>t.cid===c.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const myWl=D.wallets.filter(w=>w.cid===c.id).sort((a,b)=>b.date.localeCompare(a.date));
+  const bal=walletBal(c.id),totalProfit=myTx.reduce((s,t)=>s+(t.paid-(t.cost||0)),0),ds=daysSince(c.lastVisit);
+  return `<div class="app-header"><button class="icon-btn tap" onclick="go('customers')">${Iapp.back()}</button><h1>客戶詳情</h1>
+    <button class="icon-btn tap" onclick="go('customerEdit',{cid:'${c.id}'})">${Iapp.edit()}</button>
+  </div>
+  <div class="scroll-area no-scrollbar">
+    <div style="display:flex;align-items:center;gap:16px;padding:0 0 20px">
+      <div class="avatar-lg">${esc(c.name[0])}</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><h2 style="font-size:22px;font-weight:700;color:var(--ink)">${esc(c.name)}</h2><span class="tag ${lvCls(c.level)}">${c.level}</span></div>
+        <div style="font-size:13px;color:var(--muted);margin-top:4px">${Iapp.phone()} ${esc(c.phone)}${c.lineId?` · LINE ✓`:''}</div>
+        ${c.birthday?`<div style="font-size:12px;color:var(--muted);margin-top:2px">🎂 ${c.birthday}</div>`:''}
+        ${ds>=0&&ds>=30?`<span class="visit-warn ${ds>=60?'visit-red':''}" style="margin-top:6px">⚠️ ${ds}天未到訪</span>`:''}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+      <div class="card" style="text-align:center;padding:14px;margin:0"><div style="font-size:11px;color:var(--muted)">來店次數</div><div style="font-size:22px;font-weight:700;color:var(--caramel);margin-top:4px">${c.visits||0}</div></div>
+      <div class="card" style="text-align:center;padding:14px;margin:0"><div style="font-size:11px;color:var(--muted)">累積消費</div><div style="font-size:15px;font-weight:700;color:var(--ink);margin-top:4px">${fm(c.totalSpent)}</div></div>
+      ${isAdmin?`<div class="card" style="text-align:center;padding:14px;margin:0"><div style="font-size:11px;color:var(--muted)">貢獻毛利</div><div style="font-size:15px;font-weight:700;color:var(--success);margin-top:4px">${fm(totalProfit)}</div></div>`
+      :`<div class="card" style="text-align:center;padding:14px;margin:0"><div style="font-size:11px;color:var(--muted)">最後到訪</div><div style="font-size:13px;font-weight:700;color:var(--ink);margin-top:4px">${fmDate(c.lastVisit)}</div></div>`}
+    </div>
+    ${bal>0||myWl.length>0?`<div class="card" style="background:linear-gradient(135deg,var(--lavender),#C8BFE0);padding:18px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div><div style="font-size:12px;color:#5C4B7C">儲值餘額</div><div style="font-size:24px;font-weight:700;color:#3D2E5C">${fm(bal)}</div></div>
+        <button onclick="appS.page={name:'wallets',editWl:{type:'儲值',cid:'${c.id}',amount:'',note:''}};renderApp()" style="background:white;color:#3D2E5C;padding:10px 18px;border-radius:14px;font-weight:600;font-size:13px;border:none;cursor:pointer">＋ 儲值</button>
+      </div>
+    </div>`:''}
+    ${c.notes?`<div class="card" style="background:var(--milk);padding:14px;margin-bottom:16px"><div style="font-size:12px;color:var(--muted);margin-bottom:4px">備註</div><div style="color:var(--ink);font-size:14px">${esc(c.notes)}</div></div>`:''}
+    ${myTx.length>0?`<h3 style="font-size:16px;color:var(--ink);margin-bottom:10px">消費紀錄 (${myTx.length})</h3>
+    ${myTx.map(t=>{const profit=t.paid-(t.cost||0),mg=t.paid>0?profit/t.paid*100:0;return`<div class="card" style="padding:14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div><div style="font-weight:600;color:var(--ink)">${esc(t.sname)}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${t.date} · ${t.pm}${t.staff?` · ${esc(t.staff)}`:''}</div></div>
+        <div style="text-align:right"><div style="font-weight:700;color:var(--ink)">${fm(t.paid)}</div>${isAdmin?`<div class="${mgCls(mg)}" style="font-size:11px">${fm(profit)} · ${pct(mg)}</div>`:''}</div>
+      </div>
+    </div>`}).join('')}`:''}
+    ${myWl.length>0?`<h3 style="font-size:16px;color:var(--ink);margin:16px 0 10px">儲值紀錄</h3>
+    ${myWl.map(w=>`<div class="card" style="padding:12px;margin-bottom:6px"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600;color:var(--ink)">${w.type}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${w.date}${w.note?` · ${esc(w.note)}`:''}</div></div><div style="font-weight:700;color:${w.sign>0?'var(--success)':'var(--danger)'}">${w.sign>0?'+':''}${fm(w.sign)}</div></div></div>`).join('')}`:''}
+    <div style="margin-top:16px"><button class="app-btn-danger tap" onclick="appDelCust('${c.id}')">刪除客戶</button></div>
+  </div>`;
+}
+window.appDelCust=cid=>showAppModal({type:'confirm',title:'刪除客戶',msg:'確定刪除？此操作無法復原',danger:true,onConfirm:()=>{D.customers=D.customers.filter(c=>c.id!==cid);persist();closeAppModal();goApp('customers');toast('已刪除')}});
+
+/* ─── 客戶編輯 ─── */
+function rCustomerEdit(){
+  const isNew=appS.page.isNew;
+  const existing=D.customers.find(c=>c.id===appS.page.cid);
+  const f=appS.page.form||(appS.page.form={id:existing?.id||uid(),name:existing?.name||'',phone:existing?.phone||'',lineId:existing?.lineId||'',birthday:existing?.birthday||'',skinType:existing?.skinType||'',notes:existing?.notes||'',level:existing?.level||'新客',totalSpent:existing?.totalSpent||0,visits:existing?.visits||0,lastVisit:existing?.lastVisit||''});
+  return `<div class="app-header"><button class="icon-btn tap" onclick="${isNew?`go('customers')`:`go('customerDetail',{cid:'${f.id}'})`}">${Iapp.back()}</button><h1>${isNew?'新增客戶':'編輯客戶'}</h1></div>
+  <div class="scroll-area no-scrollbar">
+    <div class="field"><div class="field-label">姓名 *</div><input class="app-input" value="${esc(f.name)}" oninput="appS.page.form.name=this.value" placeholder="客戶姓名"/></div>
+    <div class="field"><div class="field-label">電話</div><input class="app-input" value="${esc(f.phone)}" oninput="appS.page.form.phone=this.value" placeholder="09xxxxxxxx"/></div>
+    <div class="field"><div class="field-label">LINE ID</div><input class="app-input" value="${esc(f.lineId)}" oninput="appS.page.form.lineId=this.value" placeholder="@xxx"/></div>
+    <div class="field"><div class="field-label">生日</div><input class="app-input" type="text" inputmode="numeric" placeholder="例：1997/06/27" value="${esc(f.birthday)}" oninput="appS.page.form.birthday=this.value"/></div>
+    <div class="field"><div class="field-label">膚質</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        ${['油性','乾性','混合','敏感'].map(t=>`<button class="btn-option-app tap ${f.skinType===t?'selected':''}" onclick="appS.page.form.skinType='${t}';renderApp()">${t}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field"><div class="field-label">備註</div><textarea class="app-input" style="min-height:70px;resize:none" oninput="appS.page.form.notes=this.value" placeholder="過敏史、偏好等">${esc(f.notes)}</textarea></div>
+    <button class="app-btn-primary tap" onclick="appSaveCust()">儲存</button>
+  </div>`;
+}
+window.appSaveCust=()=>{
+  const f=appS.page.form;if(!f.name){toast('⚠️ 請填寫姓名');return}
+  const idx=D.customers.findIndex(c=>c.id===f.id);
+  if(idx>=0)D.customers[idx]={...f};else D.customers=[...D.customers,{...f}];
+  persist();toast('✅ 客戶已儲存');
+  if(appS.page.fromAddTx)goApp('addTx');else goApp('customerDetail',{cid:f.id});
+};
+
+/* ─── 療程管理 ─── */
+function rServices(){
+  if(appS.page.editSvc)return rServiceEdit();
+  const q=appS.page.q||'',cat=appS.page.cat||'全部';
+  const list=D.services.filter(s=>(!q||s.name.includes(q))&&(cat==='全部'||s.category===cat));
+  return `<div class="app-header"><button class="icon-btn tap" onclick="go('dashboard')">${Iapp.back()}</button><h1>療程管理</h1>
+    <button class="icon-btn icon-btn-primary tap" onclick="appS.page.editSvc={id:uid(),name:'',price:'',cost:'',category:'臉部',active:true,isNew:true};renderApp()">${Iapp.plus(20)}</button>
+  </div>
+  <div style="padding:0 20px 10px">
+    <div style="position:relative;margin-bottom:10px">
+      <div style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)">${Iapp.search()}</div>
+      <input class="app-input" style="padding-left:44px" placeholder="搜尋療程名稱" value="${esc(q)}" oninput="appS.page.q=this.value;renderApp()"/>
+    </div>
+    <div style="display:flex;gap:6px" class="no-scrollbar">
+      ${['全部','臉部','身體','其他'].map(c=>`<button style="padding:6px 14px;border-radius:999px;font-weight:600;font-size:12px;background:${cat===c?'var(--caramel)':'white'};color:${cat===c?'white':'var(--mocha)'};border:1.5px solid ${cat===c?'var(--caramel)':'var(--border)'}" onclick="appS.page.cat='${c}';renderApp()">${c}</button>`).join('')}
+    </div>
+  </div>
+  <div class="scroll-area no-scrollbar">
+    ${list.map(s=>{const profit=s.price-s.cost,mg=s.price>0?profit/s.price*100:0;
+      return `<div class="card tap" style="padding:14px;margin-bottom:8px" onclick="appEditSvc('${s.id}')">
+        <div style="display:flex;align-items:center;gap:12px">
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-weight:600;color:var(--ink)">${esc(s.name)}</span>
+              <span style="font-size:11px;padding:2px 8px;border-radius:999px;background:${s.active?'var(--success)':'var(--border)'};color:${s.active?'white':'var(--muted)'}">${s.active?'啟用':'停用'}</span>
+            </div>
+            <div style="font-size:12px;color:var(--muted)">售價 ${fm(s.price)} · 成本 ${fm(s.cost)} · <span class="${mgCls(mg)}">${pct(mg)}</span></div>
+          </div>
+          <div style="text-align:right"><div style="font-size:11px;color:var(--muted)">毛利</div><div style="font-weight:700;color:var(--caramel)">${fm(profit)}</div></div>
+        </div>
+      </div>`;}).join('')}
+  </div>`;
+}
+function rServiceEdit(){
+  const f=appS.page.editSvc;
+  const profit=(parseFloat(f.price)||0)-(parseFloat(f.cost)||0),mg=f.price>0?profit/f.price*100:0;
+  return `<div class="app-header"><button class="icon-btn tap" onclick="delete appS.page.editSvc;renderApp()">${Iapp.back()}</button><h1>${f.isNew?'新增療程':'編輯療程'}</h1></div>
+  <div class="scroll-area no-scrollbar">
+    <div class="field"><div class="field-label">療程名稱 *</div><input class="app-input" value="${esc(f.name)}" oninput="appS.page.editSvc.name=this.value" placeholder="例：深層清潔"/></div>
+    <div class="field"><div class="field-label">分類</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        ${['臉部','身體','其他'].map(c=>`<button class="btn-option-app tap ${f.category===c?'selected':''}" onclick="appS.page.editSvc.category='${c}';renderApp()">${c}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field"><div class="field-label">售價 *</div><input class="app-input" type="number" value="${f.price}" oninput="appS.page.editSvc.price=this.value;renderApp()" placeholder="1200"/></div>
+    <div class="field"><div class="field-label">成本（耗材＋產品）</div><input class="app-input" type="number" value="${f.cost}" oninput="appS.page.editSvc.cost=this.value;renderApp()" placeholder="280"/></div>
+    ${f.price>0?`<div class="card" style="background:linear-gradient(135deg,var(--caramel),var(--mocha));color:white;margin-bottom:16px"><div style="display:flex;justify-content:space-between"><div><div style="font-size:12px;opacity:.85">毛利</div><div style="font-size:22px;font-weight:700">${fm(profit)}</div></div><div style="text-align:right"><div style="font-size:12px;opacity:.85">毛利率</div><div style="font-size:22px;font-weight:700">${pct(mg)}</div></div></div></div>`:''}
+    <div class="field"><div class="field-label">狀態</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn-option-app tap ${f.active?'selected':''}" onclick="appS.page.editSvc.active=true;renderApp()">✅ 啟用</button>
+        <button class="btn-option-app tap ${!f.active?'selected':''}" onclick="appS.page.editSvc.active=false;renderApp()">⏸ 停用</button>
+      </div>
+    </div>
+    <button class="app-btn-primary tap" onclick="appSaveSvc()">儲存療程</button>
+    ${!f.isNew?`<button class="app-btn-danger tap" style="margin-top:10px" onclick="appDelSvc('${f.id}')">刪除療程</button>`:''}
+  </div>`;
+}
+window.appSaveSvc=()=>{const f=appS.page.editSvc;if(!f.name||!f.price){toast('⚠️ 請填名稱和售價');return}const svc={id:f.id,name:f.name,price:parseInt(f.price),cost:parseInt(f.cost)||0,category:f.category,active:f.active};const idx=D.services.findIndex(s=>s.id===svc.id);if(idx>=0)D.services[idx]=svc;else D.services=[...D.services,svc];delete appS.page.editSvc;persist();toast('✅ 療程已儲存');renderApp()};
+window.appDelSvc=id=>showAppModal({type:'confirm',title:'刪除療程',msg:'確定刪除？',danger:true,onConfirm:()=>{D.services=D.services.filter(s=>s.id!==id);delete appS.page.editSvc;persist();closeAppModal();renderApp();toast('已刪除')}});
+
+/* ─── 預約管理 ─── */
+function rAppointments(){
+  if(appS.page.editApt)return rAppointmentEdit();
+  const dates=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()+i);const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),dd=String(d.getDate()).padStart(2,'0');const lbl=['日','一','二','三','四','五','六'][d.getDay()];return{str:`${y}-${m}-${dd}`,lbl,day:dd}});
+  const selDate=appS.page.selDate||dates[0].str;
+  const dayApts=D.appointments.filter(a=>a.date===selDate).sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  return `<div class="app-header"><button class="icon-btn tap" onclick="go('dashboard')">${Iapp.back()}</button><h1>預約管理</h1>
+    <button class="icon-btn icon-btn-primary tap" onclick="appNewApt()">${Iapp.plus(20)}</button>
+  </div>
+  <div class="date-picker no-scrollbar">
+    ${dates.map(d=>`<div class="date-pick-item ${selDate===d.str?'active':''}" onclick="appS.page.selDate='${d.str}';renderApp()">
+      <div style="font-size:10px;opacity:.7">${d.lbl}</div>
+      <div style="font-size:16px;font-weight:700;margin:2px 0">${d.day}</div>
+    </div>`).join('')}
+  </div>
+  <div class="scroll-area no-scrollbar">
+    ${dayApts.length===0?`<div style="text-align:center;padding:40px 0;color:var(--muted)">這天沒有預約<br><button class="app-btn-secondary tap" style="margin-top:14px;width:auto;padding:10px 20px;display:inline-block" onclick="appNewApt()">＋ 新增預約</button></div>`
+    :dayApts.map(a=>`<div class="card" style="padding:14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="width:50px;height:50px;border-radius:14px;background:var(--milk);display:grid;place-items:center;color:var(--mocha);font-weight:700;font-size:13px;flex-shrink:0">${a.time||'--'}</div>
+        <div style="flex:1"><div style="font-weight:600;color:var(--ink)">${esc(a.cname)}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${esc(a.sname)}</div>${a.note?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${esc(a.note)}</div>`:''}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+          <span style="font-size:11px;padding:3px 10px;border-radius:999px;background:${a.status==='完成'?'var(--success)':a.status==='取消'?'#f5e0e0':'var(--latte)'};color:${a.status==='完成'?'white':a.status==='取消'?'var(--danger)':'var(--espresso)'}">${a.status}</span>
+          <button class="icon-btn tap" style="width:32px;height:32px" onclick="appEditApt('${a.id}')">${Iapp.edit(14)}</button>
+        </div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+function rAppointmentEdit(){
+  const f=appS.page.editApt;
+  return `<div class="app-header"><button class="icon-btn tap" onclick="delete appS.page.editApt;renderApp()">${Iapp.back()}</button><h1>${f.isNew?'新增預約':'編輯預約'}</h1></div>
+  <div class="scroll-area no-scrollbar">
+    <div class="field"><div class="field-label">客戶 *</div>
+      <select class="app-input" style="appearance:auto;margin-bottom:8px" onchange="aptSelectCust(this.value)">
+        <option value="">── 選擇現有客戶 ──</option>
+        ${D.customers.map(c=>`<option value="${c.id}" ${f.cid===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+        <option value="__new__">＋ 新客戶（手動輸入）</option>
+      </select>
+      ${f.cid==='__new__'||(!f.cid&&f.newCustName!==undefined)?`
+      <input class="app-input" placeholder="新客戶姓名 *" value="${esc(f.newCustName||'')}" oninput="appS.page.editApt.newCustName=this.value" style="margin-bottom:6px"/>
+      <input class="app-input" placeholder="電話（選填）" value="${esc(f.newCustPhone||'')}" oninput="appS.page.editApt.newCustPhone=this.value"/>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">儲存預約時會自動新增至客戶名單</div>`:''}
+    </div>
+    <div class="field"><div class="field-label">療程 *</div>
+      <select class="app-input" style="appearance:auto" onchange="const s=D.services.find(x=>x.id===this.value);appS.page.editApt.sid=this.value;appS.page.editApt.sname=s?s.name:'';renderApp()">
+        <option value="">選擇療程</option>
+        ${D.services.filter(s=>s.active).map(s=>`<option value="${s.id}" ${f.sid===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><div class="field-label">日期</div><input class="app-input" type="date" value="${f.date}" oninput="appS.page.editApt.date=this.value"/></div>
+      <div class="field"><div class="field-label">時間</div><input class="app-input" type="time" value="${f.time||'10:00'}" oninput="appS.page.editApt.time=this.value"/></div>
+    </div>
+    <div class="field"><div class="field-label">狀態</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+        ${['已預約','完成','取消','未到'].map(st=>`<button class="btn-option-app tap ${f.status===st?'selected':''}" onclick="appS.page.editApt.status='${st}';renderApp()">${st}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field"><div class="field-label">備註</div><textarea class="app-input" style="min-height:60px;resize:none" oninput="appS.page.editApt.note=this.value" placeholder="特別需求">${esc(f.note||'')}</textarea></div>
+    <button class="app-btn-primary tap" onclick="appSaveApt()">儲存預約</button>
+    ${!f.isNew?`<button class="app-btn-danger tap" style="margin-top:10px" onclick="appDelApt('${f.id}')">刪除預約</button>`:''}
+  </div>`;
+}
+window.appNewApt=()=>{const d=appS.page.selDate||(()=>{const n=new Date();return n.getFullYear()+'-'+(n.getMonth()+1).toString().padStart(2,'0')+'-'+n.getDate().toString().padStart(2,'0')})();appS.page.editApt={id:uid(),cid:'',cname:'',sid:'',sname:'',date:d,time:'10:00',status:'已預約',note:'',isNew:true};renderApp()};
+window.appEditApt=id=>{const a=D.appointments.find(x=>x.id===id);if(!a)return;appS.page.editApt={...a,isNew:false};renderApp()};
+window.appSelectCust=id=>{const c=D.customers.find(x=>x.id===id);if(!c)return;appS.page={name:'addTx',step:2,cust:c};renderApp()};
+window.appSelectSvc=id=>{const s=D.services.find(x=>x.id===id);if(!s)return;const p=appS.page;appS.page={name:'addTx',step:3,cust:p.cust,svc:s,paid:s.price,pm:'現金',pmNote:'',staffName:D.user.name};renderApp()};
+window.appEditSvc=id=>{const s=D.services.find(x=>x.id===id);if(!s)return;appS.page.editSvc={...s,isNew:false};renderApp()};
+window.adminEditCust=id=>{const c=D.customers.find(x=>x.id===id);if(!c)return;goAdmin('customers',{editing:{...c,isNew:false}})};
+window.adminEditSvc=id=>{const s=D.services.find(x=>x.id===id);if(!s)return;goAdmin('services',{editing:{...s,isNew:false}})};
+window.aptSelectCust=v=>{
+  if(v==='__new__'){appS.page.editApt.cid='__new__';appS.page.editApt.cname='';appS.page.editApt.newCustName='';appS.page.editApt.newCustPhone='';}
+  else{const c=D.customers.find(x=>x.id===v);appS.page.editApt.cid=v;appS.page.editApt.cname=c?c.name:'';delete appS.page.editApt.newCustName;delete appS.page.editApt.newCustPhone;}
+  renderApp();
+};
+window.appSaveApt=()=>{
+  const f=appS.page.editApt;
+  if(!f.sid){toast('⚠️ 請選擇療程');return}
+  let cid=f.cid,cname=f.cname;
+  // 新客戶：自動建立
+  if(f.cid==='__new__'||f.newCustName){
+    if(!f.newCustName||!f.newCustName.trim()){toast('⚠️ 請輸入新客戶姓名');return}
+    const nc={id:uid(),name:f.newCustName.trim(),phone:f.newCustPhone||'',lineId:'',birthday:'',skinType:'',level:'新客',totalSpent:0,visits:0,lastVisit:'',notes:''};
+    D.customers=[...D.customers,nc];cid=nc.id;cname=nc.name;
+    toast('✅ 已新增客戶：'+nc.name);
+  }
+  if(!cid){toast('⚠️ 請選擇或輸入客戶');return}
+  const apt={id:f.id,cid,cname,sid:f.sid,sname:f.sname,date:f.date,time:f.time,status:f.status,note:f.note};
+  const idx=D.appointments.findIndex(a=>a.id===f.id);
+  if(idx>=0)D.appointments[idx]=apt;else D.appointments=[...D.appointments,apt];
+  delete appS.page.editApt;persist();toast('✅ 預約已儲存');renderApp();
+};
+window.appDelApt=id=>showAppModal({type:'confirm',title:'刪除預約',msg:'確定刪除此預約？',danger:true,onConfirm:()=>{D.appointments=D.appointments.filter(a=>a.id!==id);delete appS.page.editApt;persist();closeAppModal();renderApp()}});
+
+/* ─── 儲值錢包 ─── */
+function rWallets(){
+  if(appS.page.editWl)return rWalletEdit();
+  const bals=D.customers.map(c=>({c,bal:walletBal(c.id),entries:D.wallets.filter(w=>w.cid===c.id)})).filter(x=>x.entries.length>0).sort((a,b)=>b.bal-a.bal);
+  const total=bals.reduce((s,b)=>s+b.bal,0);
+  return `<div class="app-header"><button class="icon-btn tap" onclick="go('dashboard')">${Iapp.back()}</button><h1>儲值錢包</h1>
+    <button class="icon-btn icon-btn-primary tap" onclick="appS.page.editWl={type:'儲值',cid:'',amount:'',note:''};renderApp()">${Iapp.plus(20)}</button>
+  </div>
+  <div class="scroll-area no-scrollbar">
+    <div class="card" style="background:linear-gradient(135deg,var(--lavender),#B8AED6);color:#3D2E5C;padding:22px;margin-bottom:16px">
+      <div style="font-size:12px;opacity:.85;margin-bottom:4px">總儲值餘額</div>
+      <div style="font-size:30px;font-weight:700">${fm(total)}</div>
+      <div style="font-size:11px;opacity:.75;margin-top:6px">${bals.length} 位儲值客戶</div>
+    </div>
+    ${bals.length===0?`<div class="card" style="text-align:center;padding:30px;color:var(--muted)">還沒有儲值客戶</div>`
+    :bals.map(b=>`<div class="card tap" style="padding:14px;margin-bottom:8px" onclick="go('customerDetail',{cid:'${b.c.id}'})">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div class="avatar">${esc(b.c.name[0])}</div>
+        <div style="flex:1"><div style="font-weight:600;color:var(--ink)">${esc(b.c.name)}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${b.entries.length} 筆紀錄</div></div>
+        <div style="text-align:right"><div style="font-size:11px;color:var(--muted)">餘額</div><div style="font-weight:700;color:#5C4B7C">${fm(b.bal)}</div></div>
+      </div>
+    </div>`).join('')}
+  </div>`;
+}
+function rWalletEdit(){
+  const f=appS.page.editWl;
+  const cust=f.cid?D.customers.find(c=>c.id===f.cid):null;
+  const bal=f.cid?walletBal(f.cid):0;
+  return `<div class="app-header"><button class="icon-btn tap" onclick="delete appS.page.editWl;renderApp()">${Iapp.back()}</button><h1>儲值 / 扣款</h1></div>
+  <div class="scroll-area no-scrollbar">
+    <div class="field"><div class="field-label">類型</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        ${['儲值','贈送','退款'].map(t=>`<button class="btn-option-app tap ${f.type===t?'selected':''}" onclick="appS.page.editWl.type='${t}';renderApp()">${t}</button>`).join('')}
+      </div>
+    </div>
+    <div class="field"><div class="field-label">客戶 *</div>
+      ${cust?`<div class="card" style="background:var(--milk);padding:12px;margin:0"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-weight:600;color:var(--ink)">${esc(cust.name)}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">目前餘額 ${fm(bal)}</div></div><button onclick="appS.page.editWl.cid='';renderApp()" style="color:var(--mocha);font-size:13px;background:none;border:none;cursor:pointer">更換</button></div></div>`
+      :`<div style="display:flex;gap:8px;overflow-x:auto" class="no-scrollbar">${D.customers.map(c=>`<div class="tap" onclick="appS.page.editWl.cid='${c.id}';renderApp()" style="min-width:80px;padding:12px 10px;border-radius:14px;text-align:center;background:white;font-size:13px;font-weight:600;color:var(--ink);border:1.5px solid var(--border)">${esc(c.name)}</div>`).join('')}</div>`}
+    </div>
+    <div class="field"><div class="field-label">金額 *</div><input class="app-input" type="number" value="${f.amount}" oninput="appS.page.editWl.amount=this.value" placeholder="10000"/></div>
+    <div class="field"><div class="field-label">備註</div><textarea class="app-input" style="min-height:60px;resize:none" oninput="appS.page.editWl.note=this.value" placeholder="首次儲值送10%">${esc(f.note||'')}</textarea></div>
+    <button class="app-btn-primary tap" onclick="appSaveWl()">確認儲值</button>
+  </div>`;
+}
+window.appSaveWl=()=>{
+  const f=appS.page.editWl;if(!f.cid||!f.amount){toast('⚠️ 請選客戶並填金額');return}
+  const cust=D.customers.find(c=>c.id===f.cid),amt=parseInt(f.amount);
+  D.wallets=[{id:uid(),cid:f.cid,cname:cust.name,type:f.type,amount:amt,sign:amt,date:today(),note:f.note,staff:D.user.name},...D.wallets];
+  delete appS.page.editWl;persist();toast('✅ 已儲值');renderApp();
+};
+
+/* ─── 毛利報表 ─── */
+function rReports(){
+  if(D.user.role!=='admin')return`<div class="app-header"><button class="icon-btn tap" onclick="go('dashboard')">${Iapp.back()}</button><h1>毛利報表</h1></div><div style="padding:40px;text-align:center;color:var(--muted)"><div style="font-size:48px;margin-bottom:16px">🔒</div><p>此功能僅老闆可使用</p><button class="app-btn-secondary tap" style="margin-top:16px" onclick="go('dashboard')">返回首頁</button></div>`;
+  const m=appS.page.month||thisMonth();
+  const mTx=D.transactions.filter(t=>t.date.startsWith(m)&&t.status==='完成');
+  const mRev=mTx.reduce((s,t)=>s+t.paid,0),mCost=mTx.reduce((s,t)=>s+(t.cost||0),0);
+  const mProfit=mRev-mCost,mMg=mRev>0?mProfit/mRev*100:0;
+  const days7=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;const rev=D.transactions.filter(t=>t.date===ds&&t.status==='完成').reduce((s,t)=>s+t.paid,0);return{ds,rev,lbl:['日','一','二','三','四','五','六'][d.getDay()]}});
+  const maxRev=Math.max(...days7.map(d=>d.rev),1);
+  const svcMap={};mTx.forEach(t=>{if(!svcMap[t.sname])svcMap[t.sname]={name:t.sname,count:0,rev:0,profit:0};svcMap[t.sname].count++;svcMap[t.sname].rev+=t.paid;svcMap[t.sname].profit+=(t.paid-(t.cost||0))});
+  const top5=Object.values(svcMap).sort((a,b)=>b.profit-a.profit).slice(0,5);
+  const pmMap={};mTx.forEach(t=>{pmMap[t.pm]=(pmMap[t.pm]||0)+t.paid});
+  const vip=D.customers.filter(c=>c.level==='VIP').length,old=D.customers.filter(c=>c.level==='舊客').length,nw=D.customers.filter(c=>c.level==='新客').length;
+  const mCids=[...new Set(mTx.map(t=>t.cid))];let newIn=0,retIn=0;mCids.forEach(cid=>{const c=D.customers.find(x=>x.id===cid);if(!c)return;const ct=mTx.filter(t=>t.cid===cid).length;if((c.visits||0)<=ct)newIn++;else retIn++});
+  return `<div class="app-header"><button class="icon-btn tap" onclick="go('dashboard')">${Iapp.back()}</button><h1>毛利報表</h1>
+    <button class="icon-btn tap" onclick="exportCSV('transactions')" title="匯出CSV">${Iapp.download()}</button>
+  </div>
+  <div class="scroll-area no-scrollbar">
+    <div style="margin-bottom:14px"><input type="month" class="app-input" value="${m}" onchange="appS.page.month=this.value;renderApp()"/></div>
+    <div class="card" style="background:linear-gradient(135deg,var(--espresso),var(--mocha));color:white;padding:22px;margin-bottom:14px">
+      <div style="font-size:13px;opacity:.85;margin-bottom:4px">${m} 營業額</div>
+      <div style="font-size:36px;font-weight:700">${fm(mRev)}</div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+        <div style="padding:5px 12px;background:rgba(255,255,255,.18);border-radius:10px;font-size:12px">毛利 ${fm(mProfit)}</div>
+        <div style="padding:5px 12px;background:rgba(255,255,255,.18);border-radius:10px;font-size:12px">毛利率 ${pct(mMg)}</div>
+        <div style="padding:5px 12px;background:rgba(255,255,255,.18);border-radius:10px;font-size:12px">${mTx.length} 筆</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">
+      <div class="card" style="text-align:center;padding:14px;margin:0"><div style="font-size:11px;color:var(--muted)">VIP</div><div style="font-size:20px;font-weight:700;color:#8B3A2E;margin-top:4px">${vip}</div></div>
+      <div class="card" style="text-align:center;padding:14px;margin:0"><div style="font-size:11px;color:var(--muted)">舊客</div><div style="font-size:20px;font-weight:700;color:#7A5A1F;margin-top:4px">${old}</div></div>
+      <div class="card" style="text-align:center;padding:14px;margin:0"><div style="font-size:11px;color:var(--muted)">新客</div><div style="font-size:20px;font-weight:700;color:var(--mocha);margin-top:4px">${nw}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:4px">本月新客 vs 回流客</div>
+      <div style="display:flex;gap:14px;align-items:center;margin-top:12px">
+        <div style="flex:1"><div style="font-size:12px;color:var(--muted)">新客</div><div style="font-size:28px;font-weight:700;color:var(--success)">${newIn}</div></div>
+        <div style="width:1px;background:var(--border);height:50px"></div>
+        <div style="flex:1"><div style="font-size:12px;color:var(--muted)">回流客</div><div style="font-size:28px;font-weight:700;color:var(--caramel)">${retIn}</div></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:16px">近 7 日營業額</div>
+      <div style="display:flex;align-items:flex-end;gap:8px;height:120px">
+        ${days7.map(d=>{const h=d.rev/maxRev*100;return`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:9px;color:var(--muted);height:12px">${d.rev>0?`${(d.rev/1000).toFixed(1)}k`:''}</div><div style="width:100%;height:${Math.max(h,4)}%;border-radius:6px;background:${d.ds===today()?'linear-gradient(180deg,var(--caramel),var(--mocha))':'var(--latte)'}"></div><div style="font-size:10px;color:var(--muted)">${d.lbl}</div></div>`}).join('')}
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
+      <div style="font-size:14px;font-weight:700;color:var(--ink);margin-bottom:12px">付款方式分布</div>
+      ${Object.entries(pmMap).map(([pm,rev])=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)"><span style="color:var(--ink);font-weight:600">${pm}</span><div style="text-align:right"><div style="font-weight:700;color:var(--caramel)">${fm(rev)}</div><div style="font-size:11px;color:var(--muted)">${pct(mRev>0?rev/mRev*100:0)}</div></div></div>`).join('')||`<div style="text-align:center;color:var(--muted);padding:16px">本月暫無資料</div>`}
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><div style="font-size:14px;font-weight:700;color:var(--ink)">療程毛利排行 TOP 5</div></div>
+      ${top5.length===0?`<div style="text-align:center;color:var(--muted);padding:16px">本月暫無資料</div>`
+      :top5.map((s,i)=>{const mg=s.rev>0?s.profit/s.rev*100:0;return`<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:${i<top5.length-1?'1px solid var(--border)':'none'}"><div style="width:32px;height:32px;border-radius:12px;background:${i===0?'var(--gold)':'var(--milk)'};color:${i===0?'white':'var(--mocha)'};display:grid;place-items:center;font-weight:700">${i+1}</div><div style="flex:1"><div style="font-weight:600;color:var(--ink)">${esc(s.name)}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${s.count}次 · 營收 ${fm(s.rev)} · <span class="${mgCls(mg)}">${pct(mg)}</span></div></div><div style="font-weight:700;color:var(--caramel)">${fm(s.profit)}</div></div>`}).join('')}
+    </div>
+  </div>`;
+}
+
+/* ─── App Modal ─── */
+function rAppModal(){
+  if(!appS.modal)return'';const m=appS.modal;
+  return `<div class="app-modal-overlay" onclick="closeModal()"><div class="app-modal" onclick="event.stopPropagation()">
+    <h3>${m.title||'確認'}</h3><p>${esc(m.msg)}</p>
+    <div class="app-modal-actions">
+      ${m.type==='confirm'?`<button style="background:var(--milk);color:var(--mocha)" class="tap" onclick="closeModal()">取消</button>`:''}
+      <button style="background:${m.danger?'var(--danger)':'var(--caramel)'};color:white" class="tap" onclick="doConfirm()">${m.type==='confirm'?'確認':'我知道了'}</button>
+    </div>
+  </div></div>`;
+}
+
+/* ─── 底部 App 導航 ─── */
+function rBottomNav(){
+  const p=appS.page.name,isAdmin=D.user?.role==='admin';
+  return `<div class="bottom-nav">
+    <button class="nav-btn ${p==='dashboard'?'active':''}" onclick="go('dashboard')">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1H4a1 1 0 01-1-1v-9z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+      <span>首頁</span>
+    </button>
+    <button class="nav-btn ${p==='customers'?'active':''}" onclick="go('customers')">${Iapp.user(22)}<span>客戶</span></button>
+    <button class="nav-center" onclick="go('addTx')">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
+    </button>
+    <button class="nav-btn ${p==='appointments'?'active':''}" onclick="go('appointments')">${Iapp.cal(22)}<span>預約</span></button>
+    <button class="nav-btn ${p==='wallets'?'active':''}" onclick="go('wallets')">${Iapp.wallet(22)}<span>錢包</span></button>
+  </div>`;
+}
+
+/* ════════════════════════════════════
+   ▓▓▓▓▓▓▓▓ 後台管理 ▓▓▓▓▓▓▓▓
+════════════════════════════════════ */
+const ADMIN_NAV=[
+  {id:'dashboard',label:'儀表板',icon:Iadmin.dash},
+  {id:'reports',label:'毛利報表',icon:Iadmin.chart},
+  {id:'transactions',label:'所有交易',icon:Iadmin.tx},
+  {id:'customers',label:'客戶管理',icon:Iadmin.user},
+  {id:'services',label:'療程管理',icon:Iadmin.svc},
+  {id:'wallets',label:'儲值錢包',icon:Iadmin.wallet},
+  {id:'staff',label:'員工管理',icon:Iadmin.staff},
+  {id:'settings',label:'系統設定',icon:Iadmin.settings},
+  {id:'_app',label:'切換前台',icon:Iadmin.app},
+];
+const goAdmin=(page,sub=null)=>{adminS.page=page;adminS.subPage=sub;renderAdmin()};
+window.goAdmin=goAdmin;
+window.closeSidebar=()=>{document.getElementById('adminSidebar')?.classList.remove('open');document.getElementById('overlay')?.classList.remove('show')};
+window.openSidebar=()=>{document.getElementById('adminSidebar')?.classList.add('open');document.getElementById('overlay')?.classList.add('show')};
+function adminTopbar(title,actions=''){
+  return `<div class="topbar">
+    <button class="hamburger tap" onclick="openSidebar()"><span></span><span></span><span></span></button>
+    <h1>${title}</h1>${actions}
+  </div>`;
+}
+function renderAdmin(){
+  if(currentMode!=='admin')return;
+  // 更新側邊欄
+  const nav=document.getElementById('adminNav');
+  if(nav)nav.innerHTML=ADMIN_NAV.map(n=>`<div class="nav-item ${adminS.page===n.id?'active':''}" onclick="${n.id==='_app'?`switchToApp();closeSidebar()`:`goAdmin('${n.id}');closeSidebar()`}">${n.icon}<span>${n.label}</span></div>`).join('');
+  const u=D.user||{};
+  const ua=document.getElementById('adminUserAvatar');if(ua)ua.textContent=(u.name||'?')[0];
+  const un=document.getElementById('adminUserName');if(un)un.textContent=u.name||'';
+  const ur=document.getElementById('adminUserRole');if(ur)ur.textContent=u.role==='admin'?'👑 老闆':'💆 員工';
+  // 渲染主內容
+  const main=document.getElementById('adminMain');
+  if(!main)return;
+  const pages={dashboard:aPageDashboard,reports:aPageReports,transactions:aPageTransactions,customers:aPageCustomers,services:aPageServices,wallets:aPageWallets,staff:aPageStaff,settings:aPageSettings};
+  main.innerHTML=(pages[adminS.page]||aPageDashboard)();
+  // Modal
+  const gm=document.getElementById('global-modal');
+  if(adminS.modal)gm.innerHTML=renderAdminModal();
+}
+function renderAdminModal(){
+  const m=adminS.modal;if(!m)return'';
+  return `<div class="modal-overlay" onclick="closeAdminModal()"><div class="modal" onclick="event.stopPropagation()">
+    <h3>${m.title||'確認'}</h3><p>${esc(m.msg||'')}</p>
+    <div class="modal-actions">
+      ${m.type==='confirm'?`<button style="background:var(--milk);color:var(--mocha)" class="tap" onclick="closeAdminModal()">取消</button>`:''}
+      <button style="background:${m.danger?'var(--danger)':'var(--caramel)'};color:white" class="tap" onclick="confirmAdminModal()">確認</button>
+    </div>
+  </div></div>`;
+}
+const showAdminModal=m=>{adminS.modal=m;renderAdmin()};
+window.closeAdminModal=()=>{adminS.modal=null;document.getElementById('global-modal').innerHTML='';};
+window.confirmAdminModal=()=>{const m=adminS.modal;if(m?.onConfirm)m.onConfirm();else{adminS.modal=null;document.getElementById('global-modal').innerHTML=''}};
+
+/* ─── 後台儀表板 ─── */
+function aPageDashboard(){
+  const td=today(),mn=thisMonth();
+  const tTx=D.transactions.filter(t=>t.date===td&&t.status==='完成');
+  const tRev=tTx.reduce((s,t)=>s+t.paid,0),tProfit=tTx.reduce((s,t)=>s+(t.paid-(t.cost||0)),0);
+  const mTx=D.transactions.filter(t=>t.date.startsWith(mn)&&t.status==='完成');
+  const mRev=mTx.reduce((s,t)=>s+t.paid,0),mProfit=mTx.reduce((s,t)=>s+(t.paid-(t.cost||0)),0);
+  const mMg=mRev>0?mProfit/mRev*100:0;
+  const totalBal=D.wallets.reduce((s,w)=>s+(w.sign||0),0);
+  const vip=D.customers.filter(c=>c.level==='VIP').length;
+  const oldC=D.customers.filter(c=>c.level==='舊客').length;
+  const newC=D.customers.filter(c=>c.level==='新客').length;
+  const days=Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-6+i);const ds=d.toISOString().slice(0,10);const rev=D.transactions.filter(t=>t.date===ds&&t.status==='完成').reduce((s,t)=>s+t.paid,0);return{date:ds,rev,label:`${d.getMonth()+1}/${d.getDate()}`}});
+  const maxDay=Math.max(...days.map(d=>d.rev),1);
+  const svcMap={};mTx.forEach(t=>{if(!svcMap[t.sname])svcMap[t.sname]={name:t.sname,count:0,rev:0,profit:0};svcMap[t.sname].count++;svcMap[t.sname].rev+=t.paid;svcMap[t.sname].profit+=(t.paid-(t.cost||0))});
+  const topSvc=Object.values(svcMap).sort((a,b)=>b.profit-a.profit).slice(0,5);
+  const tApts=D.appointments.filter(a=>a.date===td&&a.status!=='取消').sort((a,b)=>(a.time||'').localeCompare(b.time||''));
+  return `${adminTopbar('儀表板',`<button class="btn-secondary tap btn-sm" onclick="switchToApp()">📱 前台模式</button>`)}
+  <div class="content anim-fade">
+    <div class="kpi-grid">
+      <div class="kpi-card kpi-card-dark"><div class="kpi-label">今日營收</div><div class="kpi-value">${fm(tRev)}</div><div class="kpi-sub">毛利 ${fm(tProfit)} · ${tTx.length} 筆</div></div>
+      <div class="kpi-card"><div class="kpi-label">本月營收</div><div class="kpi-value">${fm(mRev)}</div><div class="kpi-sub">毛利率 <span class="${marginCls(mMg)}">${pct(mMg)}</span></div></div>
+      <div class="kpi-card"><div class="kpi-label">本月毛利</div><div class="kpi-value" style="color:var(--caramel)">${fm(mProfit)}</div><div class="kpi-sub">${mTx.length} 筆消費</div></div>
+      <div class="kpi-card"><div class="kpi-label">客戶總數</div><div class="kpi-value">${D.customers.length}</div><div class="kpi-sub">VIP ${vip} / 舊客 ${oldC} / 新客 ${newC}</div></div>
+      <div class="kpi-card"><div class="kpi-label">儲值總餘額</div><div class="kpi-value" style="color:#5C4B7C">${fm(totalBal)}</div><div class="kpi-sub">會員負債</div></div>
+      <div class="kpi-card"><div class="kpi-label">啟用療程</div><div class="kpi-value">${D.services.filter(s=>s.active).length}</div><div class="kpi-sub">共 ${D.services.length} 項</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+      <div class="table-wrap" style="padding:24px">
+        <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:20px">近 7 日營業額</div>
+        <div class="bar-wrap">
+          ${days.map(d=>{const h=d.rev/maxDay*100;return`<div class="bar-col"><div class="bar-val">${d.rev>0?`$${(d.rev/1000).toFixed(1)}k`:''}</div><div class="bar ${d.date===td?'bar-today':''}" style="height:${Math.max(h,4)}%"></div><div class="bar-label">${d.label}</div></div>`}).join('')}
+        </div>
+      </div>
+      <div class="table-wrap" style="padding:24px">
+        <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:20px">客戶結構</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${[{label:'VIP',count:vip,color:'#8B3A2E',bg:'var(--rose)'},{label:'舊客',count:oldC,color:'#7A5A1F',bg:'var(--gold)'},{label:'新客',count:newC,color:'var(--mocha)',bg:'var(--milk)'}].map(r=>{const t=vip+oldC+newC||1,w=r.count/t*100;return`<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:13px;font-weight:600;color:${r.color}">${r.label}</span><span style="font-size:13px;font-weight:700">${r.count} 人 (${pct(w)})</span></div><div style="height:8px;border-radius:999px;background:var(--border)"><div style="height:100%;width:${w}%;border-radius:999px;background:${r.bg};transition:width .5s"></div></div></div>`}).join('')}
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px">
+      <div class="table-wrap">
+        <div class="table-head"><h2>本月療程毛利排行</h2></div>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>#</th><th>療程</th><th>次數</th><th>毛利</th><th>毛利率</th></tr></thead>
+          <tbody>${topSvc.length===0?`<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">暫無資料</td></tr>`:topSvc.map((s,i)=>{const mg=s.rev>0?s.profit/s.rev*100:0;return`<tr><td><div style="width:26px;height:26px;border-radius:8px;background:${i===0?'var(--gold)':'var(--milk)'};color:${i===0?'white':'var(--mocha)'};display:grid;place-items:center;font-weight:700;font-size:12px">${i+1}</div></td><td style="font-weight:600">${esc(s.name)}</td><td>${s.count}</td><td style="color:var(--caramel);font-weight:700">${fm(s.profit)}</td><td><span class="${marginCls(mg)}">${pct(mg)}</span></td></tr>`}).join('')}</tbody>
+        </table></div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head"><h2>今日預約</h2><button class="btn-primary tap btn-sm" onclick="switchToApp();go('appointments')">查看全部</button></div>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>時間</th><th>客戶</th><th>療程</th><th>狀態</th></tr></thead>
+          <tbody>${tApts.length===0?`<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">今日無預約</td></tr>`:tApts.map(a=>`<tr><td>${a.time||'--'}</td><td style="font-weight:600">${esc(a.cname)}</td><td>${esc(a.sname)}</td><td><span class="${a.status==='完成'?'admin-tag admin-tag-done':'admin-tag'}">${a.status}</span></td></tr>`).join('')}</tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ─── 後台毛利報表 ─── */
+function aPageReports(){
+  const vm=adminS.subPage?.month||thisMonth();
+  const mTx=D.transactions.filter(t=>t.date.startsWith(vm)&&t.status==='完成');
+  const mRev=mTx.reduce((s,t)=>s+t.paid,0),mCost=mTx.reduce((s,t)=>s+(t.cost||0),0);
+  const mProfit=mRev-mCost,mMg=mRev>0?mProfit/mRev*100:0;
+  const daysMap={};mTx.forEach(t=>{const d=parseInt(t.date.slice(8));if(!daysMap[d])daysMap[d]={day:d,rev:0};daysMap[d].rev+=t.paid});
+  const dailyData=Object.values(daysMap).sort((a,b)=>a.day-b.day);
+  const maxRev=Math.max(...dailyData.map(d=>d.rev),1);
+  const pmMap={};mTx.forEach(t=>{pmMap[t.pm]=(pmMap[t.pm]||0)+t.paid});
+  const svcMap={};mTx.forEach(t=>{if(!svcMap[t.sname])svcMap[t.sname]={name:t.sname,count:0,rev:0,profit:0};svcMap[t.sname].count++;svcMap[t.sname].rev+=t.paid;svcMap[t.sname].profit+=(t.paid-(t.cost||0))});
+  const topSvc=Object.values(svcMap).sort((a,b)=>b.profit-a.profit).slice(0,8);
+  const staffMap={};mTx.forEach(t=>{if(!staffMap[t.staff||'未知'])staffMap[t.staff||'未知']={name:t.staff||'未知',count:0,rev:0,profit:0};staffMap[t.staff||'未知'].count++;staffMap[t.staff||'未知'].rev+=t.paid;staffMap[t.staff||'未知'].profit+=(t.paid-(t.cost||0))});
+  const staffRank=Object.values(staffMap).sort((a,b)=>b.rev-a.rev);
+  const prevM=()=>{const d=new Date(vm+'-01');d.setMonth(d.getMonth()-1);return d.toISOString().slice(0,7)};
+  const nextM=()=>{const d=new Date(vm+'-01');d.setMonth(d.getMonth()+1);return d.toISOString().slice(0,7)};
+  return `${adminTopbar('毛利報表',`<button class="btn-secondary tap btn-sm" onclick="exportCSV('transactions')">${Iadmin.dl} 匯出 CSV</button>`)}
+  <div class="content anim-fade">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px">
+      <button class="btn-secondary tap btn-sm" onclick="goAdmin('reports',{month:'${prevM()}'})">‹ 上月</button>
+      <div style="font-size:20px;font-weight:800;color:var(--ink)">${vm}</div>
+      <button class="btn-secondary tap btn-sm" onclick="goAdmin('reports',{month:'${nextM()}'})">下月 ›</button>
+    </div>
+    <div class="kpi-grid" style="margin-bottom:24px">
+      <div class="kpi-card kpi-card-dark"><div class="kpi-label">本月營業額</div><div class="kpi-value">${fm(mRev)}</div><div class="kpi-sub">${mTx.length} 筆交易</div></div>
+      <div class="kpi-card"><div class="kpi-label">本月毛利</div><div class="kpi-value" style="color:var(--caramel)">${fm(mProfit)}</div><div class="kpi-sub">成本 ${fm(mRev-mProfit)}</div></div>
+      <div class="kpi-card"><div class="kpi-label">毛利率</div><div class="kpi-value ${marginCls(mMg)}">${pct(mMg)}</div><div class="kpi-sub">目標：55% 以上</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:20px;margin-bottom:24px">
+      <div class="table-wrap" style="padding:24px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:20px">每日營業額</div>
+        ${dailyData.length===0?`<div style="text-align:center;color:var(--muted);padding:30px">本月暫無記錄</div>`:`
+          <div style="display:flex;align-items:flex-end;gap:6px;height:160px;overflow-x:auto" class="no-scrollbar">
+            ${dailyData.map(d=>{const h=d.rev/maxRev*100;const isToday=`${vm}-${String(d.day).padStart(2,'0')}`===today();return`<div style="flex:0 0 28px;display:flex;flex-direction:column;align-items:center;gap:4px"><div style="font-size:9px;color:var(--muted);height:12px">${d.rev>0?`${(d.rev/1000).toFixed(1)}k`:''}</div><div style="width:20px;height:${Math.max(h,4)}%;border-radius:4px;background:${isToday?'linear-gradient(180deg,var(--caramel),var(--mocha))':'var(--latte)'}"></div><div style="font-size:9px;color:var(--muted)">${d.day}</div></div>`}).join('')}
+          </div>
+        `}
+      </div>
+      <div class="table-wrap" style="padding:24px">
+        <div style="font-size:16px;font-weight:700;margin-bottom:20px">付款方式</div>
+        ${Object.entries(pmMap).length===0?`<div style="text-align:center;color:var(--muted);padding:20px">暫無資料</div>`:
+        Object.entries(pmMap).sort((a,b)=>b[1]-a[1]).map(([pm,rev])=>{const w=mRev>0?rev/mRev*100:0;return`<div style="margin-bottom:14px"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:13px;font-weight:600">${pm}</span><span style="font-size:12px;color:var(--muted)">${pct(w)}</span></div><div style="height:8px;border-radius:999px;background:var(--border)"><div style="height:100%;width:${w}%;border-radius:999px;background:linear-gradient(135deg,var(--caramel),var(--mocha));transition:width .5s"></div></div><div style="font-size:12px;color:var(--muted);margin-top:2px">${fm(rev)}</div></div>`}).join('')}
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="table-wrap">
+        <div class="table-head"><h2>療程毛利排行</h2></div>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>#</th><th>療程</th><th>次數</th><th>營收</th><th>毛利</th><th>毛利率</th></tr></thead>
+          <tbody>${topSvc.length===0?`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:20px">暫無資料</td></tr>`:topSvc.map((s,i)=>{const mg=s.rev>0?s.profit/s.rev*100:0;return`<tr><td><div style="width:26px;height:26px;border-radius:8px;background:${i===0?'var(--gold)':'var(--milk)'};color:${i===0?'white':'var(--mocha)'};display:grid;place-items:center;font-weight:700;font-size:12px">${i+1}</div></td><td style="font-weight:600">${esc(s.name)}</td><td>${s.count}</td><td>${fm(s.rev)}</td><td style="color:var(--caramel);font-weight:700">${fm(s.profit)}</td><td><span class="${marginCls(mg)}">${pct(mg)}</span></td></tr>`}).join('')}</tbody>
+        </table></div>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head"><h2>員工業績</h2></div>
+        <div class="tbl-scroll"><table>
+          <thead><tr><th>員工</th><th>筆數</th><th>業績</th><th>毛利</th></tr></thead>
+          <tbody>${staffRank.length===0?`<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">暫無資料</td></tr>`:staffRank.map(s=>{const mg=s.rev>0?s.profit/s.rev*100:0;return`<tr><td style="font-weight:700">${esc(s.name)}</td><td>${s.count}</td><td>${fm(s.rev)}</td><td><span class="${marginCls(mg)}">${fm(s.profit)}</span></td></tr>`}).join('')}</tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ─── 後台所有交易 ─── */
+function aPageTransactions(){
+  const q=(adminS.subPage?.q||'').toLowerCase();
+  const pm=adminS.subPage?.pm||'全部';
+  const sort=adminS.subPage?.sort||'date_desc';
+  let txs=[...D.transactions];
+  if(q)txs=txs.filter(t=>(t.cname||'').toLowerCase().includes(q)||(t.sname||'').toLowerCase().includes(q));
+  if(pm!=='全部')txs=txs.filter(t=>t.pm===pm||t.pm.startsWith(pm+'（'));
+  if(sort==='date_desc')txs.sort((a,b)=>b.date.localeCompare(a.date));
+  else txs.sort((a,b)=>b.paid-a.paid);
+  const tRev=txs.reduce((s,t)=>s+t.paid,0),tProfit=txs.reduce((s,t)=>s+(t.paid-(t.cost||0)),0);
+  return `${adminTopbar('所有交易',`<button class="btn-secondary tap btn-sm" onclick="exportCSV('transactions')">${Iadmin.dl} 匯出</button>`)}
+  <div class="content anim-fade">
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <input class="admin-input" style="flex:1;min-width:200px" placeholder="搜尋客戶或服務…" value="${esc(q)}" oninput="goAdmin('transactions',{...adminS.subPage,q:this.value})"/>
+      <select class="admin-input" style="width:140px" onchange="goAdmin('transactions',{...adminS.subPage,pm:this.value})">
+        ${['全部','現金','LINE Pay','轉帳','刷卡','儲值扣款','其他'].map(p=>`<option ${pm===p?'selected':''}>${p}</option>`).join('')}
+      </select>
+      <select class="admin-input" style="width:140px" onchange="goAdmin('transactions',{...adminS.subPage,sort:this.value})">
+        <option value="date_desc" ${sort==='date_desc'?'selected':''}>最新優先</option>
+        <option value="paid_desc" ${sort==='paid_desc'?'selected':''}>金額高優先</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+      <div style="background:white;border-radius:12px;padding:14px 20px;box-shadow:0 2px 8px rgba(0,0,0,.04)"><div style="font-size:11px;color:var(--muted)">篩選筆數</div><div style="font-size:20px;font-weight:800">${txs.length} 筆</div></div>
+      <div style="background:white;border-radius:12px;padding:14px 20px;box-shadow:0 2px 8px rgba(0,0,0,.04)"><div style="font-size:11px;color:var(--muted)">篩選總金額</div><div style="font-size:20px;font-weight:800">${fm(tRev)}</div></div>
+      <div style="background:white;border-radius:12px;padding:14px 20px;box-shadow:0 2px 8px rgba(0,0,0,.04)"><div style="font-size:11px;color:var(--muted)">篩選毛利</div><div style="font-size:20px;font-weight:800;color:var(--caramel)">${fm(tProfit)}</div></div>
+    </div>
+    <div class="table-wrap"><div class="tbl-scroll"><table>
+      <thead><tr><th>日期</th><th>客戶</th><th>療程</th><th>原價</th><th>實收</th><th>毛利率</th><th>付款</th><th>員工</th></tr></thead>
+      <tbody>${txs.length===0?`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">找不到符合條件的交易</td></tr>`:
+      txs.map(t=>{const profit=t.paid-(t.cost||0),mg=t.paid>0?profit/t.paid*100:0;return`<tr>
+        <td style="white-space:nowrap">${t.date}</td>
+        <td style="font-weight:600">${esc(t.cname)}</td>
+        <td>${esc(t.sname)}</td>
+        <td>${fm(t.orig||t.paid)}</td>
+        <td style="font-weight:700">${fm(t.paid)}</td>
+        <td><span class="${marginCls(mg)}">${pct(mg)}</span></td>
+        <td>${esc(t.pm)}</td>
+        <td>${esc(t.staff||'-')}</td>
+      </tr>`}).join('')}</tbody>
+    </table></div></div>
+  </div>`;
+}
+
+/* ─── 後台客戶管理 ─── */
+function aPageCustomers(){
+  if(adminS.subPage?.editing!==undefined)return aPageCustomerEdit();
+  const q=(adminS.subPage?.q||'').toLowerCase();
+  const filter=adminS.subPage?.lvl||'全部';
+  let custs=[...D.customers];
+  if(filter!=='全部')custs=custs.filter(c=>c.level===filter);
+  if(q)custs=custs.filter(c=>c.name.toLowerCase().includes(q)||c.phone.includes(q));
+  custs.sort((a,b)=>(b.totalSpent||0)-(a.totalSpent||0));
+  return `${adminTopbar('客戶管理',`
+    <button class="btn-secondary tap btn-sm" onclick="exportCSV('customers')">${Iadmin.dl} 匯出</button>
+    <button class="btn-primary tap btn-sm" onclick="goAdmin('customers',{editing:{isNew:true,id:uid(),name:'',phone:'',lineId:'',birthday:'',skinType:'',level:'新客',notes:'',totalSpent:0,visits:0,lastVisit:''}})">${Iadmin.plus} 新增</button>
+  `)}
+  <div class="content anim-fade">
+    <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <input class="admin-input" style="flex:1;min-width:200px" placeholder="搜尋姓名或電話…" value="${esc(q)}" oninput="goAdmin('customers',{q:this.value,lvl:'${filter}'})"/>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        ${['全部','VIP','舊客','新客'].map(f=>`<button class="admin-btn-option tap btn-sm ${filter===f?'selected':''}" onclick="goAdmin('customers',{q:'${esc(q)}',lvl:'${f}'})">${f}</button>`).join('')}
+      </div>
+    </div>
+    <div class="table-wrap"><div class="tbl-scroll"><table>
+      <thead><tr><th>客戶</th><th>電話</th><th>等級</th><th>累積消費</th><th>來店</th><th>最後到訪</th><th>儲值餘額</th><th>操作</th></tr></thead>
+      <tbody>${custs.length===0?`<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px">找不到客戶</td></tr>`:
+      custs.map(c=>{const balance=walletBal(c.id);return`<tr>
+        <td><div style="font-weight:700">${esc(c.name)}</div>${c.notes?`<div style="font-size:11px;color:var(--muted)">${esc(c.notes.slice(0,20))}</div>`:''}</td>
+        <td>${esc(c.phone)}</td>
+        <td><span class="admin-tag admin-tag-${c.level==='VIP'?'vip':c.level==='舊客'?'old':'new'}">${c.level}</span></td>
+        <td style="font-weight:700">${fm(c.totalSpent||0)}</td>
+        <td>${c.visits||0} 次</td>
+        <td>${c.lastVisit||'-'} ${visitWarnBadge(c.lastVisit)}</td>
+        <td style="color:#5C4B7C;font-weight:700">${balance>0?fm(balance):'-'}</td>
+        <td><div style="display:flex;gap:6px">
+          <button class="btn-secondary tap btn-sm" onclick="adminEditCust('${c.id}')">${Iadmin.edit}</button>
+          <button class="btn-danger tap btn-sm" onclick="aDelCustomer('${c.id}')">${Iadmin.trash}</button>
+        </div></td>
+      </tr>`}).join('')}</tbody>
+    </table></div></div>
+  </div>`;
+}
+function aPageCustomerEdit(){
+  const e=adminS.subPage.editing;
+  const f=adminS.subPage.form||{...e};
+  return `${adminTopbar(e.isNew?'新增客戶':'編輯客戶')}
+  <div class="content anim-fade"><div class="form-card">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="field"><div class="field-label">姓名 *</div><input class="admin-input" value="${esc(f.name||'')}" oninput="adminS.subPage.form={...adminS.subPage.form,name:this.value}"/></div>
+      <div class="field"><div class="field-label">電話</div><input class="admin-input" type="tel" value="${esc(f.phone||'')}" oninput="adminS.subPage.form={...adminS.subPage.form,phone:this.value}"/></div>
+      <div class="field"><div class="field-label">LINE ID</div><input class="admin-input" value="${esc(f.lineId||'')}" oninput="adminS.subPage.form={...adminS.subPage.form,lineId:this.value}"/></div>
+      <div class="field"><div class="field-label">生日</div><input class="admin-input" type="text" inputmode="numeric" placeholder="例：1997/06/27" value="${esc(f.birthday||'')}" oninput="adminS.subPage.form={...adminS.subPage.form,birthday:this.value}"/></div>
+    </div>
+    <div class="field"><div class="field-label">膚質</div>
+      <div class="admin-btn-group">${['乾性','油性','混合性','敏感','中性'].map(t=>`<button class="admin-btn-option tap btn-sm ${(f.skinType||'')===t?'selected':''}" onclick="adminS.subPage.form={...adminS.subPage.form,skinType:'${t}'};renderAdmin()">${t}</button>`).join('')}</div>
+    </div>
+    <div class="field"><div class="field-label">等級</div>
+      <div class="admin-btn-group">${['新客','舊客','VIP'].map(l=>`<button class="admin-btn-option tap btn-sm ${(f.level||'')===l?'selected':''}" onclick="adminS.subPage.form={...adminS.subPage.form,level:'${l}'};renderAdmin()">${l}</button>`).join('')}</div>
+    </div>
+    <div class="field"><div class="field-label">備註</div><textarea class="admin-input" style="min-height:80px;resize:none" oninput="adminS.subPage.form={...adminS.subPage.form,notes:this.value}">${esc(f.notes||'')}</textarea></div>
+    <div style="display:flex;gap:12px">
+      <button class="btn-secondary tap" onclick="goAdmin('customers')">取消</button>
+      <button class="btn-primary tap" onclick="aSaveCustomer()">儲存</button>
+    </div>
+  </div></div>`;
+}
+window.aSaveCustomer=()=>{
+  const f=adminS.subPage?.form||adminS.subPage?.editing;
+  if(!f?.name){toast('請填姓名');return}
+  const existing=D.customers.find(c=>c.id===f.id);
+  const cust={id:f.id||uid(),name:f.name,phone:f.phone||'',lineId:f.lineId||'',birthday:f.birthday||'',skinType:f.skinType||'',level:f.level||'新客',notes:f.notes||'',totalSpent:existing?.totalSpent||0,visits:existing?.visits||0,lastVisit:existing?.lastVisit||''};
+  const idx=D.customers.findIndex(c=>c.id===cust.id);
+  if(idx>=0)D.customers[idx]=cust;else D.customers=[...D.customers,cust];
+  persist();toast('✅ 客戶已儲存');goAdmin('customers');
+};
+window.aDelCustomer=id=>showAdminModal({type:'confirm',danger:true,title:'刪除客戶',msg:'確定刪除？此操作不可復原',onConfirm:()=>{D.customers=D.customers.filter(c=>c.id!==id);persist();toast('已刪除');closeAdminModal();goAdmin('customers')}});
+
+/* ─── 後台療程管理 ─── */
+function aPageServices(){
+  if(adminS.subPage?.editing!==undefined)return aPageServiceEdit();
+  const cat=adminS.subPage?.cat||'全部';
+  const svcs=D.services.filter(s=>cat==='全部'||s.category===cat);
+  return `${adminTopbar('療程管理',`<button class="btn-primary tap btn-sm" onclick="goAdmin('services',{editing:{id:uid(),name:'',price:'',cost:'',category:'臉部',active:true,isNew:true}})">${Iadmin.plus} 新增療程</button>`)}
+  <div class="content anim-fade">
+    <div style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap">
+      ${['全部','臉部','身體','其他'].map(c=>`<button class="admin-btn-option tap btn-sm ${cat===c?'selected':''}" onclick="goAdmin('services',{cat:'${c}'})">${c}</button>`).join('')}
+    </div>
+    <div class="table-wrap"><div class="tbl-scroll"><table>
+      <thead><tr><th>療程名稱</th><th>分類</th><th>售價</th><th>成本</th><th>毛利</th><th>毛利率</th><th>狀態</th><th>操作</th></tr></thead>
+      <tbody>${svcs.map(s=>{const profit=s.price-s.cost,mg=s.price>0?profit/s.price*100:0;return`<tr>
+        <td style="font-weight:700">${esc(s.name)}</td>
+        <td><span class="admin-tag">${s.category}</span></td>
+        <td style="font-weight:700">${fm(s.price)}</td>
+        <td style="color:var(--muted)">${fm(s.cost)}</td>
+        <td style="color:var(--caramel);font-weight:700">${fm(profit)}</td>
+        <td><span class="${marginCls(mg)}">${pct(mg)}</span></td>
+        <td><span style="padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:${s.active?'var(--sage)':'var(--border)'};color:${s.active?'#2D5A2D':'var(--muted)'}">${s.active?'啟用':'停用'}</span></td>
+        <td><button class="btn-secondary tap btn-sm" onclick="adminEditSvc('${s.id}')">${Iadmin.edit}</button></td>
+      </tr>`}).join('')}</tbody>
+    </table></div></div>
+  </div>`;
+}
+function aPageServiceEdit(){
+  const e=adminS.subPage.editing;
+  const price=parseFloat(e.price)||0,cost=parseFloat(e.cost)||0;
+  const profit=price-cost,mg=price>0?profit/price*100:0;
+  return `${adminTopbar(e.isNew?'新增療程':'編輯療程')}
+  <div class="content anim-fade"><div class="form-card">
+    <div class="field"><div class="field-label">療程名稱 *</div><input class="admin-input" value="${esc(e.name)}" oninput="adminS.subPage.editing.name=this.value;renderAdmin()"/></div>
+    <div class="field"><div class="field-label">分類</div>
+      <div class="admin-btn-group">${['臉部','身體','其他'].map(c=>`<button class="admin-btn-option tap btn-sm ${e.category===c?'selected':''}" onclick="adminS.subPage.editing.category='${c}';renderAdmin()">${c}</button>`).join('')}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="field"><div class="field-label">售價 *</div><input class="admin-input" type="number" value="${e.price}" oninput="adminS.subPage.editing.price=this.value;renderAdmin()"/></div>
+      <div class="field"><div class="field-label">成本</div><input class="admin-input" type="number" value="${e.cost}" oninput="adminS.subPage.editing.cost=this.value;renderAdmin()"/></div>
+    </div>
+    ${price>0?`<div style="background:linear-gradient(135deg,var(--caramel),var(--mocha));color:white;border-radius:16px;padding:20px;margin-bottom:20px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:center"><div><div style="font-size:11px;opacity:.85">毛利</div><div style="font-size:24px;font-weight:800">${fm(profit)}</div></div><div><div style="font-size:11px;opacity:.85">毛利率</div><div style="font-size:24px;font-weight:800">${pct(mg)}</div></div></div>`:''}
+    <div class="field"><div class="field-label">狀態</div>
+      <div class="admin-btn-group">
+        <button class="admin-btn-option tap btn-sm ${e.active?'selected':''}" onclick="adminS.subPage.editing.active=true;renderAdmin()">✅ 啟用</button>
+        <button class="admin-btn-option tap btn-sm ${!e.active?'selected':''}" onclick="adminS.subPage.editing.active=false;renderAdmin()">⏸ 停用</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px">
+      <button class="btn-secondary tap" onclick="goAdmin('services')">取消</button>
+      <button class="btn-primary tap" onclick="aSaveService()">儲存</button>
+    </div>
+  </div></div>`;
+}
+window.aSaveService=()=>{
+  const e=adminS.subPage.editing;
+  if(!e.name||!e.price){toast('請填名稱和售價');return}
+  const svc={id:e.id,name:e.name,price:parseInt(e.price),cost:parseInt(e.cost)||0,category:e.category,active:e.active};
+  const idx=D.services.findIndex(s=>s.id===svc.id);
+  if(idx>=0)D.services[idx]=svc;else D.services=[...D.services,svc];
+  persist();toast('✅ 療程已儲存');goAdmin('services');
+};
+
+/* ─── 後台儲值錢包 ─── */
+function aPageWallets(){
+  const bals=D.customers.map(c=>({customer:c,balance:walletBal(c.id),entries:D.wallets.filter(w=>w.cid===c.id)})).filter(b=>b.entries.length>0).sort((a,b)=>b.balance-a.balance);
+  const totalBal=bals.reduce((s,b)=>s+b.balance,0);
+  return `${adminTopbar('儲值錢包',`<button class="btn-primary tap btn-sm" onclick="goAdmin('wallets',{addWallet:true})">${Iadmin.plus} 新增儲值</button>`)}
+  <div class="content anim-fade">
+    ${adminS.subPage?.addWallet?aRenderAddWallet():''}
+    <div class="kpi-grid" style="margin-bottom:24px">
+      <div class="kpi-card kpi-card-dark"><div class="kpi-label">總儲值餘額（負債）</div><div class="kpi-value">${fm(totalBal)}</div><div class="kpi-sub">${bals.length} 位儲值客戶</div></div>
+    </div>
+    <div class="table-wrap" style="margin-bottom:24px"><div class="tbl-scroll"><table>
+      <thead><tr><th>客戶</th><th>等級</th><th>餘額</th><th>筆數</th><th>最後操作</th><th>操作</th></tr></thead>
+      <tbody>${bals.length===0?`<tr><td colspan="6" style="text-align:center;color:var(--muted);padding:24px">還沒有儲值客戶</td></tr>`:
+      bals.map(b=>{const last=b.entries.sort((a,c)=>c.date.localeCompare(a.date))[0];return`<tr>
+        <td style="font-weight:700">${esc(b.customer.name)}</td>
+        <td><span class="admin-tag admin-tag-${b.customer.level==='VIP'?'vip':b.customer.level==='舊客'?'old':'new'}">${b.customer.level}</span></td>
+        <td style="font-weight:800;color:#5C4B7C">${fm(b.balance)}</td>
+        <td>${b.entries.length}</td>
+        <td>${last?.date||'-'} ${last?.type?`(${last.type})`:''}</td>
+        <td><button class="btn-primary tap btn-sm" onclick="goAdmin('wallets',{addWallet:true,preCustomer:'${b.customer.id}'})">+ 儲值</button></td>
+      </tr>`}).join('')}</tbody>
+    </table></div></div>
+    <div class="table-wrap">
+      <div class="table-head"><h2>儲值流水帳</h2></div>
+      <div class="tbl-scroll"><table>
+        <thead><tr><th>日期</th><th>客戶</th><th>類型</th><th>金額</th><th>備註</th></tr></thead>
+        <tbody>${D.wallets.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,50).map(w=>`<tr>
+          <td>${w.date}</td>
+          <td style="font-weight:600">${esc(w.cname)}</td>
+          <td>${w.type}</td>
+          <td style="font-weight:700;color:${(w.sign||0)>=0?'var(--success)':'var(--danger)'}">${(w.sign||0)>=0?'+':''}${fm(w.sign||0)}</td>
+          <td style="color:var(--muted)">${esc(w.note||'-')}</td>
+        </tr>`).join('')}</tbody>
+      </table></div>
+    </div>
+  </div>`;
+}
+function aRenderAddWallet(){
+  const preCust=adminS.subPage?.preCustomer||'';
+  return `<div class="form-card" style="margin-bottom:24px">
+    <div style="font-size:18px;font-weight:700;margin-bottom:20px">新增儲值記錄</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="field"><div class="field-label">客戶 *</div>
+        <select class="admin-input" id="wc">
+          <option value="">選擇客戶…</option>
+          ${D.customers.map(c=>`<option value="${c.id}" ${preCust===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><div class="field-label">類型</div>
+        <select class="admin-input" id="wt">${['儲值','贈送','退款'].map(t=>`<option>${t}</option>`).join('')}</select>
+      </div>
+    </div>
+    <div class="field"><div class="field-label">金額 *</div><input class="admin-input" id="wa" type="number" placeholder="10000"/></div>
+    <div class="field"><div class="field-label">備註</div><input class="admin-input" id="wn" placeholder="首次儲值送 10%…"/></div>
+    <div style="display:flex;gap:12px">
+      <button class="btn-secondary tap" onclick="goAdmin('wallets')">取消</button>
+      <button class="btn-primary tap" onclick="aSaveWallet()">確認儲值</button>
+    </div>
+  </div>`;
+}
+window.aSaveWallet=()=>{
+  const cid=document.getElementById('wc')?.value;
+  const type=document.getElementById('wt')?.value||'儲值';
+  const amount=parseInt(document.getElementById('wa')?.value||0);
+  const note=document.getElementById('wn')?.value||'';
+  if(!cid||!amount){toast('請選客戶並填金額');return}
+  const cust=D.customers.find(c=>c.id===cid);
+  D.wallets=[{id:uid(),cid,cname:cust.name,type,amount,sign:amount,date:today(),note,staff:D.user.name},...D.wallets];
+  persist();toast('✅ 儲值成功');goAdmin('wallets');
+};
+
+/* ─── 後台員工管理 ─── */
+function aPageStaff(){
+  const mn=thisMonth();
+  const mTx=D.transactions.filter(t=>t.date.startsWith(mn)&&t.status==='完成');
+  const staffStats=D.staff.map(s=>{const txs=mTx.filter(t=>t.staff===s.name);return{...s,monthRev:txs.reduce((a,t)=>a+t.paid,0),monthCount:txs.length}});
+  return `${adminTopbar('員工管理',`<button class="btn-primary tap btn-sm" onclick="goAdmin('staff',{addStaff:true})">${Iadmin.plus} 新增員工</button>`)}
+  <div class="content anim-fade">
+    ${adminS.subPage?.addStaff?`<div class="form-card" style="margin-bottom:24px">
+      <div style="font-size:18px;font-weight:700;margin-bottom:20px">新增員工</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="field"><div class="field-label">姓名 *</div><input class="admin-input" id="sname" placeholder="Amy"/></div>
+        <div class="field"><div class="field-label">角色</div><select class="admin-input" id="srole">${['員工','老闆'].map(r=>`<option>${r}</option>`).join('')}</select></div>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button class="btn-secondary tap" onclick="goAdmin('staff')">取消</button>
+        <button class="btn-primary tap" onclick="aAddStaff()">新增</button>
+      </div>
+    </div>`:''}
+    <div class="table-wrap"><div class="tbl-scroll"><table>
+      <thead><tr><th>姓名</th><th>角色</th><th>狀態</th><th>本月筆數</th><th>本月業績</th><th>操作</th></tr></thead>
+      <tbody>${staffStats.map(s=>`<tr>
+        <td style="font-weight:700">${esc(s.name)}</td>
+        <td>${s.role}</td>
+        <td><span style="padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:${s.active!==false?'var(--sage)':'var(--border)'};color:${s.active!==false?'#2D5A2D':'var(--muted)'}">${s.active!==false?'在職':'離職'}</span></td>
+        <td>${s.monthCount} 筆</td>
+        <td style="font-weight:700;color:var(--caramel)">${fm(s.monthRev)}</td>
+        <td><button class="btn-danger tap btn-sm" onclick="aToggleStaff('${s.id}')">${s.active!==false?'停用':'啟用'}</button></td>
+      </tr>`).join('')}</tbody>
+    </table></div></div>
+  </div>`;
+}
+window.aAddStaff=()=>{
+  const name=document.getElementById('sname')?.value.trim();
+  const role=document.getElementById('srole')?.value||'員工';
+  if(!name){toast('請輸入姓名');return}
+  D.staff=[...D.staff,{id:uid(),name,role,active:true,joinDate:today()}];
+  persist();toast('✅ 員工已新增');goAdmin('staff');
+};
+window.aToggleStaff=id=>{const idx=D.staff.findIndex(s=>s.id===id);if(idx>=0){D.staff[idx].active=!D.staff[idx].active;persist();renderAdmin()}};
+
+/* ─── 後台系統設定 ─── */
+function aPageSettings(){
+  const totalSize=JSON.stringify({c:D.customers,s:D.services,t:D.transactions,a:D.appointments,w:D.wallets}).length;
+  return `${adminTopbar('系統設定')}
+  <div class="content anim-fade">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="table-wrap" style="padding:28px">
+        <div style="font-size:18px;font-weight:700;margin-bottom:20px">資料備份</div>
+        <div style="margin-bottom:20px;padding:16px;background:var(--milk);border-radius:14px">
+          <div style="font-size:13px;color:var(--muted);margin-bottom:4px">目前資料量</div>
+          <div style="font-size:16px;font-weight:700">${D.customers.length} 客戶 · ${D.services.length} 療程 · ${D.transactions.length} 交易</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px">約 ${(totalSize/1024).toFixed(1)} KB</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn-primary tap" onclick="backupAll()">📥 下載完整備份 (JSON)</button>
+          <button class="btn-secondary tap" onclick="exportCSV('transactions')">📊 匯出交易紀錄 (CSV)</button>
+          <button class="btn-secondary tap" onclick="exportCSV('customers')">👥 匯出客戶資料 (CSV)</button>
+          <button class="btn-secondary tap" onclick="exportCSV('services')">✨ 匯出療程資料 (CSV)</button>
+        </div>
+      </div>
+      <div class="table-wrap" style="padding:28px">
+        <div style="font-size:18px;font-weight:700;margin-bottom:20px">系統資訊</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          ${[{l:'版本',v:'整合版 v3.0'},
+             {l:'資料儲存',v:'本機 localStorage'},
+             {l:'毛利計算',v:'實收 - 成本（快照）'},
+             {l:'等級規則',v:'VIP≥$30,000 / 舊客≥$3,000'},
+             {l:'未到訪警示',v:'30天橘色 / 60天紅色'},
+          ].map(r=>`<div style="display:flex;justify-content:space-between;padding:12px;background:var(--milk);border-radius:10px"><span style="font-size:13px;color:var(--muted)">${r.l}</span><span style="font-size:13px;font-weight:600">${r.v}</span></div>`).join('')}
+        </div>
+      </div>
+      <div class="table-wrap" style="padding:28px;border:1.5px solid #FEE2E2">
+        <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--danger)">⚠️ 危險操作</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:20px">以下操作不可復原，請先備份資料</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn-danger tap" onclick="aClearData('transactions')">清除所有交易紀錄</button>
+          <button class="btn-danger tap" onclick="aClearData('all')">清除所有資料（恢復預設）</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+window.aClearData=type=>showAdminModal({type:'confirm',danger:true,title:'確認清除',msg:type==='all'?'確定要清除所有資料並恢復預設？此操作不可復原！':'確定要清除所有交易紀錄？',
+  onConfirm:()=>{
+    if(type==='all'){D.customers=[...SEED_CU];D.services=[...SEED_SVC];D.transactions=[...SEED_TX];D.appointments=[];D.wallets=[...SEED_WL]}
+    else if(type==='transactions')D.transactions=[];
+    persist();toast('已清除');closeAdminModal();goAdmin('dashboard');
+  }
+});
+
+/* ════════════════════════════════════
+   初始化
+════════════════════════════════════ */
+(function init(){
+  try{
+    if(D.user){
+      if(D.user.role==='admin')showAdmin();
+      else showApp();
+    }else{
+      document.getElementById('login-view').style.display='flex';
+    }
+  }catch(e){
+    console.error('Init error:',e);
+    document.getElementById('login-view').style.display='flex';
+  }
+})();
+</script>
+</body>
+</html>
